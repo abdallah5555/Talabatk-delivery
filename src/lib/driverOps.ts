@@ -8,9 +8,9 @@ async function uid() {
 
 export async function getDriverEarnings() {
   const userId = await uid();
-  const { data, error } = await supabase.from('orders').select('id,delivery_fee,updated_at,created_at').eq('driver_id', userId).eq('status','delivered').order('updated_at',{ascending:false}).limit(500);
+  const { data, error } = await supabase.from('driver_earnings').select('order_id,gross_delivery_fee,platform_commission_percent,platform_commission_amount,driver_net_amount,earned_at').eq('driver_id', userId).order('earned_at',{ascending:false}).limit(500);
   if (error) throw error;
-  const rows=(data??[]).map((x:any)=>({id:x.id,delivery_fee:Number(x.delivery_fee??0),date:x.updated_at??x.created_at}));
+  const rows=(data??[]).map((x:any)=>({id:x.order_id,gross:Number(x.gross_delivery_fee??0),commissionPercent:Number(x.platform_commission_percent??0),commissionAmount:Number(x.platform_commission_amount??0),delivery_fee:Number(x.driver_net_amount??0),date:x.earned_at}));
   const now=Date.now(); const day=24*60*60*1000;
   return {
     rows,
