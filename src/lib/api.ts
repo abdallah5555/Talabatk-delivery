@@ -29,6 +29,28 @@ export async function getMyOrders(): Promise<Order[]> {
   return (data ?? []).map((row) => ({ ...row, subtotal: Number(row.subtotal), delivery_fee: Number(row.delivery_fee), total: Number(row.total) })) as Order[];
 }
 
+export async function getMyOrder(orderId: string): Promise<Order> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('يجب تسجيل الدخول');
+  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,created_at').eq('id', orderId).eq('customer_id', user.id).single();
+  if (error) throw error;
+  return { ...data, subtotal: Number(data.subtotal), delivery_fee: Number(data.delivery_fee), total: Number(data.total) } as Order;
+}
+
+export async function getOrderTimeline(orderId: string) {
+  const { data, error } = await supabase.from('order_status_history').select('id,status,created_at').eq('order_id', orderId).order('created_at');
+  if (error) throw error;
+  return data ?? [];
+}
+
+export function subscribeToOrder(orderId: string, onChange: () => void) {
+  const channel = supabase.channel(`order:${orderId}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, onChange)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_status_history', filter: `order_id=eq.${orderId}` }, onChange)
+    .subscribe();
+  return () => { void supabase.removeChannel(channel); };
+}
+
 export async function createOrder(input: { storeId: string; items: Array<{ id: string; quantity: number }>; address: string; note?: string; requestId: string }) {
   const { data, error } = await supabase.rpc('create_order_idempotent', {
     p_store_id: input.storeId,
