@@ -24,8 +24,5 @@
       "output": "static"
     },
     "experiments": { "typedRoutes": true }
-  },
-  "react-native-google-mobile-ads": {
-    "android_app_id": "ca-app-pub-3630733404130483~6106030269"
   }
 }
