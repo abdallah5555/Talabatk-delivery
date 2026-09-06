@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test';
 
 test('login page is Arabic marketing UI',async({page})=>{
   await page.goto('/login');
-  await expect(page.getByText('طلباتك دليفري')).toBeVisible();
+  await expect(page.getByText('طلباتك أقرب ليك')).toBeVisible();
+  await expect(page.getByText('اطلب بسهولة وتابع طلبك خطوة بخطوة من مكانك.')).toBeVisible();
   await expect(page.getByRole('button',{name:/دخول|تسجيل الدخول/})).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/بدون sms|بدون بريد|حساب واحد يجمع/i);
 });
