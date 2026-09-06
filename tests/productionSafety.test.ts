@@ -13,8 +13,12 @@ describe('production safety gates',()=>{
 
   it('never caches Supabase authenticated API responses in the service worker',()=>{
     const sw=text('public/sw.js');
-    expect(sw).toContain('.supabase.co');
-    expect(sw).toMatch(/supabase\.co[\s\S]{0,200}return fetch/i);
+    const guardIndex=sw.indexOf("url.hostname.endsWith('.supabase.co')");
+    const respondWithIndex=sw.indexOf('event.respondWith');
+    expect(guardIndex).toBeGreaterThan(-1);
+    expect(sw.slice(guardIndex,guardIndex+100)).toMatch(/return\s*;/);
+    expect(respondWithIndex).toBeGreaterThan(-1);
+    expect(guardIndex).toBeLessThan(respondWithIndex);
   });
 
   it('does not expose privileged secrets in the public env example',()=>{
