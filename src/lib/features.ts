@@ -1,0 +1,174 @@
+import { supabase } from './supabase';
+import type { Order } from '@/src/types/domain';
+
+async function uid() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('يجب تسجيل الدخول أولًا');
+  return user.id;
+}
+
+export async function getFavorites() {
+  const { data, error } = await supabase.from('favorites').select('store_id,created_at,stores(id,name,category,image_url,is_open,rating,delivery_fee)').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function toggleFavorite(storeId: string, active: boolean) {
+  const userId = await uid();
+  if (active) {
+    const { error } = await supabase.from('favorites').upsert({ user_id: userId, store_id: storeId });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('favorites').delete().eq('user_id', userId).eq('store_id', storeId);
+    if (error) throw error;
+  }
+}
+
+export async function getAddresses() {
+  const { data, error } = await supabase.from('addresses').select('id,label,address_line,latitude,longitude,is_default,created_at').order('is_default', { ascending: false }).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addAddress(input: { label: string; address: string }) {
+  const userId = await uid();
+  const { data, error } = await supabase.from('addresses').insert({ user_id: userId, label: input.label.trim() || 'المنزل', address_line: input.address.trim() }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteAddress(id: string) {
+  const { error } = await supabase.from('addresses').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function getNotifications() {
+  const { data, error } = await supabase.from('notifications').select('id,title,body,kind,is_read,created_at').order('created_at', { ascending: false }).limit(100);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function markNotificationRead(id: string) {
+  const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function getComplaints() {
+  const { data, error } = await supabase.from('complaints').select('id,order_id,subject,message,status,admin_note,created_at,updated_at').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function submitComplaint(input: { orderId?: string | null; subject: string; message: string }) {
+  const { data, error } = await supabase.rpc('submit_complaint', { p_order_id: input.orderId || null, p_subject: input.subject.trim(), p_message: input.message.trim() });
+  if (error) throw error;
+  return data;
+}
+
+export async function getMyApplications() {
+  const [merchant, driver] = await Promise.all([
+    supabase.from('merchant_applications').select('id,business_name,phone,address,category,status,created_at').order('created_at', { ascending: false }),
+    supabase.from('driver_applications').select('id,full_name,phone,vehicle_type,status,created_at').order('created_at', { ascending: false }),
+  ]);
+  if (merchant.error) throw merchant.error;
+  if (driver.error) throw driver.error;
+  return { merchant: merchant.data ?? [], driver: driver.data ?? [] };
+}
+
+export async function submitMerchantApplication(input: { businessName: string; phone: string; address: string; category: string }) {
+  const applicantId = await uid();
+  const { data, error } = await supabase.from('merchant_applications').insert({ applicant_id: applicantId, business_name: input.businessName.trim(), phone: input.phone.trim(), address: input.address.trim(), category: input.category.trim() || 'مطاعم', status: 'pending' }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function submitDriverApplication(input: { fullName: string; phone: string; vehicleType: string }) {
+  const applicantId = await uid();
+  const { data, error } = await supabase.from('driver_applications').insert({ applicant_id: applicantId, full_name: input.fullName.trim(), phone: input.phone.trim(), vehicle_type: input.vehicleType.trim(), status: 'pending' }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getDriverState() {
+  const { data, error } = await supabase.from('driver_status').select('user_id,is_online,latitude,longitude,updated_at').maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function setDriverAvailability(isOnline: boolean) {
+  const userId = await uid();
+  const { data, error } = await supabase.from('driver_status').upsert({ user_id: userId, is_online: isOnline, updated_at: new Date().toISOString() }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getAvailableDriverOrders(): Promise<Order[]> {
+  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,created_at').eq('status', 'ready').is('driver_id', null).order('created_at');
+  if (error) throw error;
+  return (data ?? []).map((x) => ({ ...x, subtotal: Number(x.subtotal), delivery_fee: Number(x.delivery_fee), total: Number(x.total) })) as Order[];
+}
+
+export async function getMyDriverOrders(): Promise<Order[]> {
+  const userId = await uid();
+  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,created_at').eq('driver_id', userId).in('status', ['assigned','picked_up','on_the_way']).order('created_at');
+  if (error) throw error;
+  return (data ?? []).map((x) => ({ ...x, subtotal: Number(x.subtotal), delivery_fee: Number(x.delivery_fee), total: Number(x.total) })) as Order[];
+}
+
+export async function acceptDriverOrder(orderId: string) {
+  const { data, error } = await supabase.rpc('driver_accept_order', { p_order_id: orderId });
+  if (error) throw error;
+  return data;
+}
+
+export async function advanceDriverOrder(orderId: string, status: 'picked_up' | 'on_the_way' | 'delivered') {
+  const { data, error } = await supabase.rpc('driver_update_order', { p_order_id: orderId, p_status: status });
+  if (error) throw error;
+  return data;
+}
+
+export async function getMerchantStores() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data, error } = await supabase.from('stores').select('id,name,category,address,is_open,delivery_fee,prep_minutes,rating').eq('owner_id', user.id).order('created_at');
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getMerchantOrders(storeIds: string[]) {
+  if (!storeIds.length) return [] as Order[];
+  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,created_at').in('store_id', storeIds).in('status', ['pending','accepted','preparing','ready','assigned','picked_up','on_the_way']).order('created_at');
+  if (error) throw error;
+  return (data ?? []).map((x) => ({ ...x, subtotal: Number(x.subtotal), delivery_fee: Number(x.delivery_fee), total: Number(x.total) })) as Order[];
+}
+
+export async function merchantUpdateOrder(orderId: string, status: 'accepted' | 'rejected' | 'preparing' | 'ready', estimatedMinutes?: number) {
+  const { data, error } = await supabase.rpc('merchant_update_order', { p_order_id: orderId, p_status: status, p_estimated_minutes: estimatedMinutes ?? null });
+  if (error) throw error;
+  return data;
+}
+
+export async function getAdminQueues() {
+  const [merchant, driver, complaints] = await Promise.all([
+    supabase.from('merchant_applications').select('id,applicant_id,business_name,phone,address,category,status,created_at').eq('status','pending').order('created_at'),
+    supabase.from('driver_applications').select('id,applicant_id,full_name,phone,vehicle_type,status,created_at').eq('status','pending').order('created_at'),
+    supabase.from('complaints').select('id,customer_id,order_id,subject,message,status,admin_note,created_at').in('status',['open','in_progress']).order('created_at'),
+  ]);
+  if (merchant.error) throw merchant.error;
+  if (driver.error) throw driver.error;
+  if (complaints.error) throw complaints.error;
+  return { merchant: merchant.data ?? [], driver: driver.data ?? [], complaints: complaints.data ?? [] };
+}
+
+export async function decideApplication(kind: 'merchant' | 'driver', id: string, status: 'approved' | 'rejected') {
+  const name = kind === 'merchant' ? 'admin_set_merchant_application' : 'admin_set_driver_application';
+  const { data, error } = await supabase.rpc(name, { p_id: id, p_status: status });
+  if (error) throw error;
+  return data;
+}
+
+export async function updateComplaint(id: string, status: 'in_progress' | 'resolved' | 'closed', note = '') {
+  const { data, error } = await supabase.rpc('admin_set_complaint', { p_id: id, p_status: status, p_admin_note: note });
+  if (error) throw error;
+  return data;
+}
