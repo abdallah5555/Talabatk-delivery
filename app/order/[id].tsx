@@ -3,6 +3,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Text, View } from 'react-native';
 import { Button, Card, Field, Muted, Screen, Title } from '@/src/components/ui';
+// Metro resolves the platform-specific DriverMap.native.tsx / DriverMap.web.tsx pair.
+// eslint-disable-next-line import/no-unresolved
 import { DriverMap } from '@/src/components/DriverMap';
 import { getMyOrder, getOrderTimeline, subscribeToOrder } from '@/src/lib/api';
 import { cancelMyOrder, getMyDriverReview, getMyReview, getReorderLines, submitDriverReview, submitStoreReview } from '@/src/lib/customerOps';
@@ -83,7 +85,6 @@ export default function OrderTracking() {
     finally { setReordering(false); }
   }
 
-  const locationAgeSeconds = driverLocation.data?.updated_at ? Math.max(0, Math.floor((Date.now() - new Date(driverLocation.data.updated_at).getTime()) / 1000)) : null;
   const canCancel=order.data?.status==='pending'||order.data?.status==='accepted';
 
   return <Screen>
@@ -98,7 +99,7 @@ export default function OrderTracking() {
       </Card>
       {liveTracking ? <>
         <Title>موقع المندوب</Title>
-        {driverLocation.data ? <><DriverMap latitude={driverLocation.data.latitude} longitude={driverLocation.data.longitude} /><Muted>{locationAgeSeconds != null && locationAgeSeconds > 120 ? 'آخر موقع قديم نسبيًا؛ ممكن يكون GPS أو الشبكة ضعيفة.' : 'الموقع بيتحدث لحظيًا أثناء تشغيل GPS عند المندوب.'}</Muted></> : <Card><Muted>{driverLocation.isLoading ? 'جاري تحديد موقع المندوب…' : 'لسه مفيش موقع متاح للمندوب.'}</Muted></Card>}
+        {driverLocation.data ? <><DriverMap latitude={driverLocation.data.latitude} longitude={driverLocation.data.longitude} /><Muted>آخر تحديث للموقع: {new Date(driverLocation.data.updated_at).toLocaleTimeString('ar-EG')}. الموقع يتحدث لحظيًا أثناء تشغيل GPS عند المندوب.</Muted></> : <Card><Muted>{driverLocation.isLoading ? 'جاري تحديد موقع المندوب…' : 'لسه مفيش موقع متاح للمندوب.'}</Muted></Card>}
       </> : null}
       <Title>خط سير الطلب</Title>
       <View style={{ gap: 8 }}>{(timeline.data ?? []).map((event) => <Card key={event.id}><Text style={{ fontWeight: '800', textAlign: 'right' }}>{labels[event.status] ?? event.status}</Text><Muted>{new Date(event.created_at).toLocaleString('ar-EG')}</Muted></Card>)}</View>
