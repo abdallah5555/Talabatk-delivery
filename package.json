@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "doctor": "expo install --check",
-    "test": "vitest run",
+    "test": "vitest run tests",
     "e2e": "playwright test"
   },
   "dependencies": {
