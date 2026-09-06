@@ -1,0 +1,20 @@
+name: refresh-lock
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/refresh-lock.yml'
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - uses: actions/upload-artifact@v4
+        with:
+          name: refreshed-package-lock
+          path: package-lock.json
+          if-no-files-found: error
