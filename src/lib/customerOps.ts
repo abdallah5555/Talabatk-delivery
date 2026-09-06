@@ -31,10 +31,10 @@ export async function cancelMyOrder(orderId:string){
   return data;
 }
 
-export async function getReorderLines(orderId: string): Promise<Array<{ item: MenuItem; quantity: number }>> {
+export async function getReorderLines(orderId: string): Promise<{ item: MenuItem; quantity: number }[]> {
   const { data, error } = await supabase.from('order_items').select('quantity,menu_items(id,store_id,name,description,image_url,price,category,is_available)').eq('order_id', orderId);
   if (error) throw error;
-  const result: Array<{ item: MenuItem; quantity: number }> = [];
+  const result: { item: MenuItem; quantity: number }[] = [];
   for (const row of data ?? []) {
     const joined = Array.isArray(row.menu_items) ? row.menu_items[0] : row.menu_items;
     if (!joined || !joined.is_available) continue;

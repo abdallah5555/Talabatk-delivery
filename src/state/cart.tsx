@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { MenuItem } from '@/src/types/domain';
 
 const CART_KEY='talabatk:draft-cart:v1';
@@ -28,12 +28,12 @@ export function CartProvider({ children }: PropsWithChildren) {
     void AsyncStorage.setItem(CART_KEY,JSON.stringify(lines)).catch(()=>undefined);
   },[hydrated,lines]);
 
-  const add = (item: MenuItem) => setLines((current) => {
+  const add = useCallback((item: MenuItem) => setLines((current) => {
     const found = current.find((x) => x.item.id === item.id);
     return found ? current.map((x) => x.item.id === item.id ? { ...x, quantity: Math.min(30,x.quantity + 1) } : x) : [...current, { item, quantity: 1 }];
-  });
-  const remove = (id: string) => setLines((current) => current.map((x) => x.item.id === id ? { ...x, quantity: x.quantity - 1 } : x).filter((x) => x.quantity > 0));
-  const clear=()=>{setLines([]);if(hydrated)void AsyncStorage.removeItem(CART_KEY).catch(()=>undefined);};
+  }),[]);
+  const remove = useCallback((id: string) => setLines((current) => current.map((x) => x.item.id === id ? { ...x, quantity: x.quantity - 1 } : x).filter((x) => x.quantity > 0)),[]);
+  const clear=useCallback(()=>{setLines([]);if(hydrated)void AsyncStorage.removeItem(CART_KEY).catch(()=>undefined);},[hydrated]);
   const value = useMemo(() => ({
     lines,
     storeId: lines[0]?.item.store_id ?? null,
@@ -43,7 +43,7 @@ export function CartProvider({ children }: PropsWithChildren) {
     remove,
     clear,
     total: lines.reduce((sum, x) => sum + x.item.price * x.quantity, 0),
-  }), [lines,hydrated]);
+  }), [lines,hydrated,add,remove,clear]);
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 

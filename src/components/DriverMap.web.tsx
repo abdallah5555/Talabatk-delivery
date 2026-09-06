@@ -8,11 +8,13 @@ export function DriverMap({ latitude, longitude }: { latitude: number; longitude
   const host = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const markerRef = useRef<Marker | null>(null);
+  const initialLocation = useRef({ latitude, longitude });
 
   useEffect(() => {
     if (!host.current || mapRef.current) return;
-    const map = new Map({ container: host.current, style: MAP_STYLE, center: [longitude, latitude], zoom: 15, attributionControl: true });
-    const marker = new Marker({ color: '#e8590c' }).setLngLat([longitude, latitude]).addTo(map);
+    const initial = initialLocation.current;
+    const map = new Map({ container: host.current, style: MAP_STYLE, center: [initial.longitude, initial.latitude], zoom: 15, attributionControl: { compact: true } });
+    const marker = new Marker({ color: '#e8590c' }).setLngLat([initial.longitude, initial.latitude]).addTo(map);
     mapRef.current = map;
     markerRef.current = marker;
     return () => { marker.remove(); map.remove(); markerRef.current = null; mapRef.current = null; };

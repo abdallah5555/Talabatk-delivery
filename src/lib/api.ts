@@ -51,7 +51,7 @@ export function subscribeToOrder(orderId: string, onChange: () => void) {
   return () => { void supabase.removeChannel(channel); };
 }
 
-export async function createOrder(input: { storeId: string; items: Array<{ id: string; quantity: number }>; address: string; note?: string; requestId: string; paymentMethod?: 'cash'|'merchant_paid_online'; scheduledFor?: string|null }) {
+export async function createOrder(input: { storeId: string; items: { id: string; quantity: number }[]; address: string; note?: string; requestId: string; paymentMethod?: 'cash'|'merchant_paid_online'; scheduledFor?: string|null }) {
   const { data, error } = await supabase.rpc('create_order_scheduled', {
     p_store_id: input.storeId,
     p_items: input.items.map((item) => ({ menu_item_id: item.id, quantity: item.quantity })),
