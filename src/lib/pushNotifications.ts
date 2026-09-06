@@ -18,7 +18,7 @@ export async function registerPushForCurrentUser() {
   const projectId = Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId;
   if (!projectId) return null;
   const token=(await Notifications.getExpoPushTokenAsync({projectId})).data;
-  const { error } = await supabase.from('push_tokens').upsert({user_id:user.id,token,platform:Platform.OS,updated_at:new Date().toISOString()},{onConflict:'token'});
+  const { error } = await supabase.from('push_tokens').upsert({user_id:user.id,token,platform:Platform.OS,updated_at:new Date().toISOString()},{onConflict:'user_id,token'});
   if (error) throw error;
   return token;
 }
