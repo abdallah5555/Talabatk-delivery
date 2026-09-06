@@ -1,0 +1,22 @@
+revoke update on table public.profiles from authenticated;
+grant update (full_name, phone, avatar_url, updated_at) on table public.profiles to authenticated;
+
+create or replace function public.admin_set_user_active(p_user_id uuid,p_active boolean)
+returns boolean
+language plpgsql
+security definer
+set search_path=''
+as $$
+begin
+  if auth.uid() is null or not public.is_admin() then raise exception 'Admin only'; end if;
+  if p_user_id=auth.uid() and not p_active then raise exception 'Cannot deactivate current admin account'; end if;
+  update public.profiles set is_active=p_active,updated_at=now() where id=p_user_id;
+  if not found then raise exception 'User not found'; end if;
+  if not p_active then update public.driver_status set is_online=false where user_id=p_user_id; end if;
+  insert into public.audit_logs(actor_id,action,entity_type,entity_id,metadata)
+  values(auth.uid(),case when p_active then 'user_reactivated' else 'user_deactivated' end,'user',p_user_id,jsonb_build_object('is_active',p_active));
+  return true;
+end;
+$$;
+revoke all on function public.admin_set_user_active(uuid,boolean) from public,anon;
+grant execute on function public.admin_set_user_active(uuid,boolean) to authenticated,service_role;
