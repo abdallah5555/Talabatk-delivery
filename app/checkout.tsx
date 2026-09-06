@@ -21,27 +21,32 @@ export default function Checkout() {
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
-  const attemptId = useRef(requestId());
+  const attemptIds = useRef<Record<string,string>>({});
+  const groups=cart.storeIds.map(storeId=>({storeId,lines:cart.lines.filter(x=>x.item.store_id===storeId)}));
+  for(const group of groups) if(!attemptIds.current[group.storeId]) attemptIds.current[group.storeId]=requestId();
 
   async function submit() {
-    if (!cart.storeId || cart.lines.length === 0) return;
+    if (groups.length === 0) return;
     setBusy(true);
     try {
-      await createOrder({ storeId: cart.storeId, items: cart.lines.map((x) => ({ id: x.item.id, quantity: x.quantity })), address: address.trim(), note: note.trim() || undefined, requestId: attemptId.current });
+      for(const group of groups){
+        await createOrder({storeId:group.storeId,items:group.lines.map(x=>({id:x.item.id,quantity:x.quantity})),address:address.trim(),note:note.trim()||undefined,requestId:attemptIds.current[group.storeId]!});
+      }
       cart.clear();
-      Alert.alert('تم إرسال الطلب', 'هنفضل معاك لحد ما طلبك يوصل.');
+      Alert.alert('تم إرسال الطلب', groups.length>1?`تم تقسيم السلة إلى ${groups.length} طلبات حسب المتاجر، وكل طلب بيتابع بشكل مستقل.`:'هنفضل معاك لحد ما طلبك يوصل.');
       router.replace('/orders');
     } catch (error) {
-      Alert.alert('تعذر تأكيد الطلب', 'يمكنك إعادة المحاولة بأمان؛ لن ننشئ نسخة مكررة من نفس الطلب.\n\n' + (error instanceof Error ? error.message : 'حاول مرة أخرى'));
+      Alert.alert('تعذر تأكيد كل الطلبات', 'يمكنك إعادة المحاولة بأمان؛ كل متجر له رقم محاولة ثابت ولن ننشئ طلبًا مكررًا لما نجح بالفعل.\n\n' + (error instanceof Error ? error.message : 'حاول مرة أخرى'));
     } finally { setBusy(false); }
   }
 
   return <Screen>
     <Title>تأكيد الطلب</Title>
-    <Card>{cart.lines.map((x) => <View key={x.item.id} style={{ flexDirection: 'row-reverse', justifyContent: 'space-between' }}><Text>{x.item.name} × {x.quantity}</Text><Text>{(x.item.price * x.quantity).toFixed(2)} ج</Text></View>)}<Muted>الإجمالي الظاهر تقديري؛ الخادم يعيد حساب الأسعار ورسوم التوصيل قبل الحفظ.</Muted></Card>
+    {groups.map((group,index)=><Card key={group.storeId}><Text style={{fontWeight:'900',textAlign:'right'}}>متجر {index+1}</Text>{group.lines.map((x) => <View key={x.item.id} style={{ flexDirection: 'row-reverse', justifyContent: 'space-between' }}><Text>{x.item.name} × {x.quantity}</Text><Text>{(x.item.price * x.quantity).toFixed(2)} ج</Text></View>)}</Card>)}
+    <Muted>{groups.length>1?'السلة فيها أكتر من متجر؛ هننشئ طلب منفصل وآمن لكل متجر. ':''}الخادم يعيد حساب الأسعار ورسوم التوصيل لكل متجر قبل الحفظ.</Muted>
     {(addresses.data??[]).length ? <><Muted>اختار عنوان محفوظ أو اكتب عنوان جديد</Muted><View style={{gap:8}}>{(addresses.data??[]).slice(0,5).map((a:any)=><Pressable accessibilityRole="button" key={a.id} onPress={()=>setAddress(a.address_line)}><Card><Text style={{textAlign:'right',fontWeight:'800'}}>{a.label}{a.is_default?' • الافتراضي':''}</Text><Muted>{a.address_line}</Muted></Card></Pressable>)}</View></> : null}
     <Field accessibilityLabel="عنوان التوصيل" placeholder="العنوان بالتفصيل" value={address} onChangeText={setAddress} />
     <Field accessibilityLabel="ملاحظات الطلب" placeholder="ملاحظات اختيارية" value={note} onChangeText={setNote} />
-    <Button title={busy ? 'جاري تأكيد الطلب…' : 'تأكيد الطلب - كاش'} disabled={busy || address.trim().length < 5 || cart.lines.length === 0} onPress={submit} />
+    <Button title={busy ? 'جاري تأكيد الطلبات…' : groups.length>1?`تأكيد ${groups.length} طلبات - كاش`:'تأكيد الطلب - كاش'} disabled={busy || address.trim().length < 5 || cart.lines.length === 0} onPress={submit} />
   </Screen>;
 }
