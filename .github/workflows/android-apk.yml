@@ -30,11 +30,11 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: cp .env.example .env
       - run: CI=1 npx expo prebuild --platform android
-      - name: Build debug APK
+      - name: Build standalone release APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: talabatk-android-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: talabatk-android-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
