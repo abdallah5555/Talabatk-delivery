@@ -12,7 +12,8 @@
       "expo-secure-store",
       "@maplibre/maplibre-react-native",
       ["expo-location", { "locationWhenInUsePermission": "طلباتك دليفري يحتاج موقع المندوب أثناء الوردية لتحديث التوصيل وتتبع الطلب." }],
-      ["expo-notifications", { "color": "#e8590c", "defaultChannel": "orders" }]
+      ["expo-notifications", { "color": "#e8590c", "defaultChannel": "orders" }],
+      ["react-native-google-mobile-ads", { "androidAppId": "ca-app-pub-3630733404130483~6106030269", "optimizeInitialization": true, "optimizeAdLoading": true }]
     ],
     "android": {
       "package": "com.talabatk.delivery",
@@ -23,5 +24,8 @@
       "output": "static"
     },
     "experiments": { "typedRoutes": true }
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-3630733404130483~6106030269"
   }
 }
