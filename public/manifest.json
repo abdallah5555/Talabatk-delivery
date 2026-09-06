@@ -1,0 +1,12 @@
+{
+  "name": "طلباتك دليفري",
+  "short_name": "طلباتك",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fff8f2",
+  "theme_color": "#e8590c",
+  "description": "اطلب من المتاجر المحلية وتابع طلبك بسهولة"
+}
