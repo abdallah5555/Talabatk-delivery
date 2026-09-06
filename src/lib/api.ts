@@ -24,7 +24,7 @@ export async function getMyRoles(): Promise<Role[]> {
 export async function getMyOrders(): Promise<Order[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
-  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,created_at').eq('customer_id', user.id).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,scheduled_for,created_at').eq('customer_id', user.id).order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row) => ({ ...row, subtotal: Number(row.subtotal), delivery_fee: Number(row.delivery_fee), total: Number(row.total) })) as Order[];
 }
@@ -32,7 +32,7 @@ export async function getMyOrders(): Promise<Order[]> {
 export async function getMyOrder(orderId: string): Promise<Order> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('يجب تسجيل الدخول');
-  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,created_at').eq('id', orderId).eq('customer_id', user.id).single();
+  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,scheduled_for,created_at').eq('id', orderId).eq('customer_id', user.id).single();
   if (error) throw error;
   return { ...data, subtotal: Number(data.subtotal), delivery_fee: Number(data.delivery_fee), total: Number(data.total) } as Order;
 }
@@ -51,14 +51,15 @@ export function subscribeToOrder(orderId: string, onChange: () => void) {
   return () => { void supabase.removeChannel(channel); };
 }
 
-export async function createOrder(input: { storeId: string; items: Array<{ id: string; quantity: number }>; address: string; note?: string; requestId: string; paymentMethod?: 'cash'|'merchant_paid_online' }) {
-  const { data, error } = await supabase.rpc('create_order_idempotent', {
+export async function createOrder(input: { storeId: string; items: Array<{ id: string; quantity: number }>; address: string; note?: string; requestId: string; paymentMethod?: 'cash'|'merchant_paid_online'; scheduledFor?: string|null }) {
+  const { data, error } = await supabase.rpc('create_order_scheduled', {
     p_store_id: input.storeId,
     p_items: input.items.map((item) => ({ menu_item_id: item.id, quantity: item.quantity })),
     p_address: input.address,
     p_request_id: input.requestId,
     p_payment_method: input.paymentMethod ?? 'cash',
     p_note: input.note ?? '',
+    p_scheduled_for: input.scheduledFor ?? null,
   });
   if (error) throw error;
   return data;
