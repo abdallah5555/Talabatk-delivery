@@ -4,16 +4,21 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, FlatList, Text, View } from 'react-native';
 import { Button, Card, Field, Muted, Screen, Title } from '@/src/components/ui';
 import { addInventoryItem, addMenuItem, adjustInventory, getInventory, getMerchantMenu, setMenuAvailability, updateMenuPrice } from '@/src/lib/merchantOps';
+import { getMerchantServiceAccess } from '@/src/lib/merchantReports';
 
 export default function MerchantStoreManagement() {
   const { storeId } = useLocalSearchParams<{ storeId: string }>();
   const qc = useQueryClient();
   const [tab, setTab] = useState<'menu'|'inventory'>('menu');
-  const menu = useQuery({ queryKey: ['merchant-menu', storeId], queryFn: () => getMerchantMenu(storeId!), enabled: Boolean(storeId) });
-  const inventory = useQuery({ queryKey: ['merchant-inventory', storeId], queryFn: () => getInventory(storeId!), enabled: Boolean(storeId) });
+  const access = useQuery({ queryKey:['merchant-service-access',storeId], queryFn:()=>getMerchantServiceAccess(storeId!), enabled:Boolean(storeId) });
+  const menu = useQuery({ queryKey: ['merchant-menu', storeId], queryFn: () => getMerchantMenu(storeId!), enabled: Boolean(storeId) && access.data?.merchant_service_enabled!==false });
+  const inventory = useQuery({ queryKey: ['merchant-inventory', storeId], queryFn: () => getInventory(storeId!), enabled: Boolean(storeId) && access.data?.merchant_service_enabled!==false });
+
+  if(access.data?.merchant_service_enabled===false) return <Screen><Title>خدمة المتجر موقوفة</Title><Card><Muted>الإدارة أوقفت خدمة المنصة لهذا المتجر. تواصل مع الإدارة لإعادة التفعيل.</Muted></Card></Screen>;
 
   return <Screen>
     <Title>إدارة المتجر</Title>
+    {access.data?<Card><Muted>الخطة: {access.data.merchant_plan??'free'} • خدمة المتجر: مفعلة • الكاشير: {access.data.cashier_enabled?'مفعّل':'موقوف'}</Muted>{!access.data.merchant_subscription_required?<Muted>استخدام المنصة مجاني حاليًا.</Muted>:null}</Card>:null}
     <Button title="التقارير ونقطة البيع POS" onPress={() => router.push(`/merchant/report/${storeId}`)} />
     <View style={{ flexDirection: 'row-reverse', gap: 8 }}>
       <View style={{ flex: 1 }}><Button title="المنيو" onPress={() => setTab('menu')} /></View>
