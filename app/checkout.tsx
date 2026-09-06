@@ -7,6 +7,7 @@ import { createOrder } from '@/src/lib/api';
 import { getAddresses } from '@/src/lib/features';
 import { useCart } from '@/src/state/cart';
 
+type PaymentMethod='cash'|'merchant_paid_online';
 function requestId() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = Math.floor(Math.random() * 16);
@@ -20,6 +21,7 @@ export default function Checkout() {
   const addresses=useQuery({queryKey:['addresses'],queryFn:getAddresses});
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
+  const [paymentMethod,setPaymentMethod]=useState<PaymentMethod>('cash');
   const [busy, setBusy] = useState(false);
   const attemptIds = useRef<Record<string,string>>({});
   const groups=cart.storeIds.map(storeId=>({storeId,lines:cart.lines.filter(x=>x.item.store_id===storeId)}));
@@ -30,7 +32,7 @@ export default function Checkout() {
     setBusy(true);
     try {
       for(const group of groups){
-        await createOrder({storeId:group.storeId,items:group.lines.map(x=>({id:x.item.id,quantity:x.quantity})),address:address.trim(),note:note.trim()||undefined,requestId:attemptIds.current[group.storeId]!});
+        await createOrder({storeId:group.storeId,items:group.lines.map(x=>({id:x.item.id,quantity:x.quantity})),address:address.trim(),note:note.trim()||undefined,requestId:attemptIds.current[group.storeId]!,paymentMethod});
       }
       cart.clear();
       Alert.alert('تم إرسال الطلب', groups.length>1?`تم تقسيم السلة إلى ${groups.length} طلبات حسب المتاجر، وكل طلب بيتابع بشكل مستقل.`:'هنفضل معاك لحد ما طلبك يوصل.');
@@ -47,6 +49,9 @@ export default function Checkout() {
     {(addresses.data??[]).length ? <><Muted>اختار عنوان محفوظ أو اكتب عنوان جديد</Muted><View style={{gap:8}}>{(addresses.data??[]).slice(0,5).map((a:any)=><Pressable accessibilityRole="button" key={a.id} onPress={()=>setAddress(a.address_line)}><Card><Text style={{textAlign:'right',fontWeight:'800'}}>{a.label}{a.is_default?' • الافتراضي':''}</Text><Muted>{a.address_line}</Muted></Card></Pressable>)}</View></> : null}
     <Field accessibilityLabel="عنوان التوصيل" placeholder="العنوان بالتفصيل" value={address} onChangeText={setAddress} />
     <Field accessibilityLabel="ملاحظات الطلب" placeholder="ملاحظات اختيارية" value={note} onChangeText={setNote} />
-    <Button title={busy ? 'جاري تأكيد الطلبات…' : groups.length>1?`تأكيد ${groups.length} طلبات - كاش`:'تأكيد الطلب - كاش'} disabled={busy || address.trim().length < 5 || cart.lines.length === 0} onPress={submit} />
+    <Title>طريقة الدفع</Title>
+    <View style={{gap:8}}><Button title={paymentMethod==='cash'?'✓ كاش عند الاستلام':'كاش عند الاستلام'} onPress={()=>setPaymentMethod('cash')}/><Button title={paymentMethod==='merchant_paid_online'?'✓ مدفوع للتاجر أونلاين':'مدفوع للتاجر أونلاين'} onPress={()=>setPaymentMethod('merchant_paid_online')}/></View>
+    <Muted>الخيار الأونلاين يسجل أن الدفع تم مباشرة للتاجر؛ التطبيق لا ينفذ بوابة دفع أو خصم إلكتروني.</Muted>
+    <Button title={busy ? 'جاري تأكيد الطلبات…' : groups.length>1?`تأكيد ${groups.length} طلبات`:'تأكيد الطلب'} disabled={busy || address.trim().length < 5 || cart.lines.length === 0} onPress={submit} />
   </Screen>;
 }
