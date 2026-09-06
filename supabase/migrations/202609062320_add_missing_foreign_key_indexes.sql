@@ -1,0 +1,15 @@
+create index if not exists ad_placements_updated_by_idx on public.ad_placements(updated_by);
+create index if not exists app_settings_updated_by_idx on public.app_settings(updated_by);
+create index if not exists deletion_requests_user_id_idx on public.deletion_requests(user_id);
+create index if not exists driver_earnings_driver_id_idx on public.driver_earnings(driver_id);
+create index if not exists driver_issues_driver_id_idx on public.driver_issues(driver_id);
+create index if not exists driver_issues_order_id_idx on public.driver_issues(order_id);
+create index if not exists driver_reviews_customer_id_idx on public.driver_reviews(customer_id);
+create index if not exists driver_reviews_driver_id_idx on public.driver_reviews(driver_id);
+create index if not exists order_status_history_order_id_idx on public.order_status_history(order_id);
+create index if not exists platform_commercial_settings_updated_by_idx on public.platform_commercial_settings(updated_by);
+create index if not exists pos_sale_items_menu_item_id_idx on public.pos_sale_items(menu_item_id);
+create index if not exists pos_sale_items_sale_id_idx on public.pos_sale_items(sale_id);
+create index if not exists pos_sales_actor_id_idx on public.pos_sales(actor_id);
+create index if not exists pos_sales_store_id_idx on public.pos_sales(store_id);
+create index if not exists store_service_access_updated_by_idx on public.store_service_access(updated_by);
