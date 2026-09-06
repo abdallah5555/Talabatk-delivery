@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+
+# builds
+build/
+dist/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# local env / secrets
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+!.env.example
+
+# Playwright/session state
+playwright/.auth/
+.auth/
+storageState*.json
+
+# Supabase local/runtime
+.supabase/
+supabase/.temp/
+
+# editors / OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
