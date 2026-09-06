@@ -11,7 +11,8 @@
       "expo-router",
       "expo-secure-store",
       "@maplibre/maplibre-react-native",
-      ["expo-location", { "locationWhenInUsePermission": "طلباتك دليفري يحتاج موقع المندوب أثناء الوردية لتحديث التوصيل وتتبع الطلب." }]
+      ["expo-location", { "locationWhenInUsePermission": "طلباتك دليفري يحتاج موقع المندوب أثناء الوردية لتحديث التوصيل وتتبع الطلب." }],
+      ["expo-notifications", { "color": "#e8590c", "defaultChannel": "orders" }]
     ],
     "android": {
       "package": "com.talabatk.delivery",
