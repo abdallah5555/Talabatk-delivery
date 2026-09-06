@@ -9,25 +9,54 @@ export function normalizeEgyptPhone(value:string){
   throw new Error('اكتب رقم موبايل مصري صحيح، مثال: 01012345678');
 }
 
-export async function signInPhonePassword(phone:string,password:string){
+function loginEmails(phone:string){
   const normalized=normalizeEgyptPhone(phone);
-  const {data,error}=await supabase.auth.signInWithPassword({phone:normalized,password});
+  const digits=normalized.slice(1);
+  const local=`0${normalized.slice(3)}`;
+  return Array.from(new Set([
+    `u_${digits}@talabak.internal.net`,
+    `u_${local}@talabak.internal.net`,
+    `${local}@talabak.app`,
+    `${digits}@talabak.app`,
+  ]));
+}
+
+async function assertActive(userId:string){
+  const {data:profile,error}=await supabase.from('profiles').select('is_active').eq('id',userId).maybeSingle();
   if(error) throw error;
-  if(!data.user) throw new Error('تعذر تسجيل الدخول.');
-  const {data:profile,error:profileError}=await supabase.from('profiles').select('is_active').eq('id',data.user.id).maybeSingle();
-  if(profileError) throw profileError;
   if(profile?.is_active===false){await supabase.auth.signOut();throw new Error('الحساب موقوف حاليًا. تواصل مع الدعم.');}
-  return data;
+}
+
+export async function signInPhonePassword(phone:string,password:string){
+  if(password.length<8) throw new Error('راجع رقم الهاتف وكلمة المرور.');
+  const emails=loginEmails(phone);
+  let lastError:Error|undefined;
+  for(const email of emails){
+    const {data,error}=await supabase.auth.signInWithPassword({email,password});
+    if(!error&&data.user){await assertActive(data.user.id);return data;}
+    lastError=error??undefined;
+  }
+  throw new Error(lastError?.message||'رقم الهاتف أو كلمة المرور غير صحيحة.');
 }
 
 export async function signUpPhonePassword(input:{name:string;phone:string;password:string}){
-  if(!input.name.trim()) throw new Error('الاسم مطلوب.');
-  if(input.password.length<8) throw new Error('كلمة المرور لازم تكون 8 أحرف على الأقل.');
+  const name=input.name.trim();
   const normalized=normalizeEgyptPhone(input.phone);
-  const {data,error}=await supabase.auth.signUp({phone:normalized,password:input.password,options:{data:{full_name:input.name.trim()}}});
-  if(error) throw error;
-  if(!data.session){
-    throw new Error('إعداد تأكيد الهاتف في الخادم يمنع الدخول المباشر. يلزم تعطيل تأكيد الهاتف لتشغيل التسجيل بدون SMS.');
+  if(name.length<2) throw new Error('الاسم مطلوب.');
+  if(input.password.length<8||input.password.length>72) throw new Error('كلمة المرور لازم تكون من 8 إلى 72 حرفًا.');
+
+  const {data,error}=await supabase.functions.invoke('customer-signup',{body:{name,phone:normalized,password:input.password}});
+  if(error){
+    const status=(error as any)?.context?.status;
+    if(status===409) throw new Error('رقم الهاتف مسجل بالفعل. جرّب تسجيل الدخول.');
+    if(status===429) throw new Error('محاولات تسجيل كثيرة. حاول بعد فترة قصيرة.');
+    throw new Error('تعذر إنشاء الحساب حاليًا. حاول مرة أخرى.');
   }
-  return data;
+  if(!data?.success) throw new Error('تعذر إنشاء الحساب حاليًا. حاول مرة أخرى.');
+
+  const email=`u_${normalized.slice(1)}@talabak.internal.net`;
+  const {data:session,error:loginError}=await supabase.auth.signInWithPassword({email,password:input.password});
+  if(loginError||!session.user||!session.session) throw new Error('تم إنشاء الحساب، لكن تعذر بدء الجلسة. سجل الدخول من صفحة الدخول.');
+  await assertActive(session.user.id);
+  return session;
 }
