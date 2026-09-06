@@ -11,7 +11,8 @@
       "expo-router",
       "expo-secure-store",
       "@maplibre/maplibre-react-native",
-      ["expo-location", { "locationWhenInUsePermission": "طلباتك دليفري يحتاج موقع المندوب أثناء الوردية لتحديث التوصيل وتتبع الطلب." }],
+      ["expo-image-picker", { "photosPermission": "طلباتك يحتاج الوصول للصور لاختيار اللوجو والصورة الشخصية وصور المستندات.", "cameraPermission": "طلباتك يحتاج الكاميرا لتصوير اللوجو والصورة الشخصية والمستندات.", "microphonePermission": false }],
+      ["expo-location", { "locationWhenInUsePermission": "طلباتك يحتاج موقعك لتحديد موقع النشاط ولتحديث موقع المندوب أثناء الوردية." }],
       ["expo-notifications", { "color": "#e8590c", "defaultChannel": "orders" }],
       ["react-native-google-mobile-ads", { "androidAppId": "ca-app-pub-3630733404130483~6106030269", "optimizeInitialization": true, "optimizeAdLoading": true }]
     ],
