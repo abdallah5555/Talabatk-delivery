@@ -15,6 +15,7 @@ function requestId() {
     return v.toString(16);
   });
 }
+function futureIso(hours:number){return new Date(Date.now()+hours*60*60*1000).toISOString();}
 
 export default function Checkout() {
   const cart = useCart();
@@ -22,6 +23,7 @@ export default function Checkout() {
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
   const [paymentMethod,setPaymentMethod]=useState<PaymentMethod>('cash');
+  const [scheduledFor,setScheduledFor]=useState<string|null>(null);
   const [busy, setBusy] = useState(false);
   const attemptIds = useRef<Record<string,string>>({});
   const groups=cart.storeIds.map(storeId=>({storeId,lines:cart.lines.filter(x=>x.item.store_id===storeId)}));
@@ -32,10 +34,11 @@ export default function Checkout() {
     setBusy(true);
     try {
       for(const group of groups){
-        await createOrder({storeId:group.storeId,items:group.lines.map(x=>({id:x.item.id,quantity:x.quantity})),address:address.trim(),note:note.trim()||undefined,requestId:attemptIds.current[group.storeId]!,paymentMethod});
+        await createOrder({storeId:group.storeId,items:group.lines.map(x=>({id:x.item.id,quantity:x.quantity})),address:address.trim(),note:note.trim()||undefined,requestId:attemptIds.current[group.storeId]!,paymentMethod,scheduledFor});
       }
       cart.clear();
-      Alert.alert('تم إرسال الطلب', groups.length>1?`تم تقسيم السلة إلى ${groups.length} طلبات حسب المتاجر، وكل طلب بيتابع بشكل مستقل.`:'هنفضل معاك لحد ما طلبك يوصل.');
+      const scheduledMessage=scheduledFor?` موعد التنفيذ: ${new Date(scheduledFor).toLocaleString('ar-EG')}.`:'';
+      Alert.alert('تم إرسال الطلب', (groups.length>1?`تم تقسيم السلة إلى ${groups.length} طلبات حسب المتاجر، وكل طلب بيتابع بشكل مستقل.`:'هنفضل معاك لحد ما طلبك يوصل.')+scheduledMessage);
       router.replace('/orders');
     } catch (error) {
       Alert.alert('تعذر تأكيد كل الطلبات', 'يمكنك إعادة المحاولة بأمان؛ كل متجر له رقم محاولة ثابت ولن ننشئ طلبًا مكررًا لما نجح بالفعل.\n\n' + (error instanceof Error ? error.message : 'حاول مرة أخرى'));
@@ -49,6 +52,9 @@ export default function Checkout() {
     {(addresses.data??[]).length ? <><Muted>اختار عنوان محفوظ أو اكتب عنوان جديد</Muted><View style={{gap:8}}>{(addresses.data??[]).slice(0,5).map((a:any)=><Pressable accessibilityRole="button" key={a.id} onPress={()=>setAddress(a.address_line)}><Card><Text style={{textAlign:'right',fontWeight:'800'}}>{a.label}{a.is_default?' • الافتراضي':''}</Text><Muted>{a.address_line}</Muted></Card></Pressable>)}</View></> : null}
     <Field accessibilityLabel="عنوان التوصيل" placeholder="العنوان بالتفصيل" value={address} onChangeText={setAddress} />
     <Field accessibilityLabel="ملاحظات الطلب" placeholder="ملاحظات اختيارية" value={note} onChangeText={setNote} />
+    <Title>موعد الطلب</Title>
+    <View style={{gap:8}}><Button title={!scheduledFor?'✓ في أقرب وقت':'في أقرب وقت'} onPress={()=>setScheduledFor(null)}/><Button title={scheduledFor&&new Date(scheduledFor).getTime()-Date.now()<90*60*1000?'✓ بعد ساعة تقريبًا':'بعد ساعة'} onPress={()=>setScheduledFor(futureIso(1))}/><Button title={scheduledFor&&new Date(scheduledFor).getTime()-Date.now()>=90*60*1000?'✓ بعد ساعتين تقريبًا':'بعد ساعتين'} onPress={()=>setScheduledFor(futureIso(2))}/></View>
+    <Muted>السيرفر يرفض أي موعد أقل من 15 دقيقة أو أبعد من 7 أيام.</Muted>
     <Title>طريقة الدفع</Title>
     <View style={{gap:8}}><Button title={paymentMethod==='cash'?'✓ كاش عند الاستلام':'كاش عند الاستلام'} onPress={()=>setPaymentMethod('cash')}/><Button title={paymentMethod==='merchant_paid_online'?'✓ مدفوع للتاجر أونلاين':'مدفوع للتاجر أونلاين'} onPress={()=>setPaymentMethod('merchant_paid_online')}/></View>
     <Muted>الخيار الأونلاين يسجل أن الدفع تم مباشرة للتاجر؛ التطبيق لا ينفذ بوابة دفع أو خصم إلكتروني.</Muted>
