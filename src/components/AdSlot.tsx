@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { Pressable, Text, View } from 'react-native';
 import type { AdPlacement } from '@/src/lib/ads';
+import { GoogleAdBanner } from './GoogleAdBanner';
 
 export function AdSlot({ad}:{ad:AdPlacement|null|undefined}){
   if(!ad) return null;
@@ -12,6 +13,8 @@ export function AdSlot({ad}:{ad:AdPlacement|null|undefined}){
       <View style={{paddingHorizontal:10,paddingVertical:6,flexDirection:'row-reverse',justifyContent:'space-between',alignItems:'center'}}><Text style={{fontSize:11,color:'#6b7280'}}>إعلان</Text>{ad.description?<Text numberOfLines={1} style={{fontSize:12,color:'#374151',flex:1,textAlign:'right'}}>{ad.description}</Text>:null}</View>
     </Pressable>;
   }
-  // Google/other providers intentionally use an adapter boundary. The actual SDK component is added when credentials/provider are activated.
+  if(ad.provider==='google'){
+    return <View accessibilityLabel="إعلان Google" style={{alignItems:'center',justifyContent:'center',minHeight:50}}><GoogleAdBanner unitId={ad.google_ad_unit_id}/></View>;
+  }
   return <View accessibilityLabel="مساحة إعلانية" style={{minHeight:56,borderRadius:14,borderWidth:1,borderColor:'#e5e7eb',alignItems:'center',justifyContent:'center',padding:10}}><Text style={{fontSize:11,color:'#9ca3af'}}>مساحة إعلانية</Text></View>;
 }
