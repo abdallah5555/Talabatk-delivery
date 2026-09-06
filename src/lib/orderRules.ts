@@ -1,11 +1,14 @@
 const transitions: Record<string, readonly string[]> = {
   pending: ['accepted', 'rejected', 'cancelled'],
   accepted: ['preparing', 'cancelled'],
-  preparing: ['ready', 'cancelled'],
-  ready: ['assigned', 'picked_up'],
+  preparing: ['ready'],
+  ready: ['assigned'],
   assigned: ['picked_up'],
-  picked_up: ['delivered'],
-  delivered: [], cancelled: [], rejected: [],
+  picked_up: ['on_the_way'],
+  on_the_way: ['delivered'],
+  delivered: [],
+  cancelled: [],
+  rejected: [],
 };
 
 export function isValidOrderTransition(from: string, to: string) {
