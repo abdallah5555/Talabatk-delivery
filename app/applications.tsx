@@ -1,28 +1,17 @@
-import { useState } from 'react';
-import { Alert, FlatList, Text } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getMyApplications, submitDriverApplication, submitMerchantApplication } from '@/src/lib/features';
-import { Button, Card, Field, Muted, Screen, Title } from '@/src/components/ui';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { Button, Card, Muted, Title } from '@/src/components/ui';
+import { getMyApplications } from '@/src/lib/features';
 
-export default function Applications() {
-  const client = useQueryClient();
-  const query = useQuery({ queryKey: ['applications'], queryFn: getMyApplications });
-  const [businessName, setBusinessName] = useState('');
-  const [merchantPhone, setMerchantPhone] = useState('');
-  const [merchantAddress, setMerchantAddress] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [driverPhone, setDriverPhone] = useState('');
-  const [vehicle, setVehicle] = useState('موتوسيكل');
-
-  async function merchant() {
-    try { await submitMerchantApplication({ businessName, phone: merchantPhone, address: merchantAddress, category: 'مطاعم' }); await client.invalidateQueries({ queryKey: ['applications'] }); Alert.alert('تم إرسال الطلب', 'الإدارة هتراجع طلب التاجر.'); }
-    catch (e) { Alert.alert('تعذر الإرسال', e instanceof Error ? e.message : 'حاول مرة أخرى'); }
-  }
-  async function driver() {
-    try { await submitDriverApplication({ fullName, phone: driverPhone, vehicleType: vehicle }); await client.invalidateQueries({ queryKey: ['applications'] }); Alert.alert('تم إرسال الطلب', 'الإدارة هتراجع طلب المندوب.'); }
-    catch (e) { Alert.alert('تعذر الإرسال', e instanceof Error ? e.message : 'حاول مرة أخرى'); }
-  }
-
-  const existing = [...(query.data?.merchant ?? []).map((x: any) => ({ ...x, kind: 'تاجر', name: x.business_name })), ...(query.data?.driver ?? []).map((x: any) => ({ ...x, kind: 'مندوب', name: x.full_name }))];
-  return <Screen><Title>انضم لفريق طلباتك</Title><Card><Text style={{ textAlign: 'right', fontWeight: '800' }}>طلب تاجر</Text><Field placeholder="اسم النشاط" value={businessName} onChangeText={setBusinessName} /><Field placeholder="رقم التواصل" keyboardType="phone-pad" value={merchantPhone} onChangeText={setMerchantPhone} /><Field placeholder="العنوان" value={merchantAddress} onChangeText={setMerchantAddress} /><Button title="إرسال طلب التاجر" onPress={merchant} disabled={!businessName || !merchantPhone || !merchantAddress} /></Card><Card><Text style={{ textAlign: 'right', fontWeight: '800' }}>طلب مندوب</Text><Field placeholder="الاسم الكامل" value={fullName} onChangeText={setFullName} /><Field placeholder="رقم التواصل" keyboardType="phone-pad" value={driverPhone} onChangeText={setDriverPhone} /><Field placeholder="وسيلة التوصيل" value={vehicle} onChangeText={setVehicle} /><Button title="إرسال طلب المندوب" onPress={driver} disabled={!fullName || !driverPhone || !vehicle} /></Card><FlatList data={existing} keyExtractor={(x: any) => x.id} contentContainerStyle={{ gap: 8 }} ListEmptyComponent={<Muted>مفيش طلبات انضمام سابقة.</Muted>} renderItem={({ item }: any) => <Card><Text style={{ textAlign: 'right', fontWeight: '800' }}>{item.kind}: {item.name}</Text><Muted>الحالة: {item.status}</Muted></Card>} /></Screen>;
+export default function Applications(){
+  const query=useQuery({queryKey:['applications'],queryFn:getMyApplications});
+  const merchant=query.data?.merchant?.[0];const driver=query.data?.driver?.[0];
+  return <ScrollView style={s.page} contentContainerStyle={s.content}>
+    <View style={s.hero}><Text style={s.kicker}>انضم لمنظومة طلباتك</Text><Title>اختار مسارك وكمّل بياناتك باحتراف</Title><Muted>كل حساب يبدأ برقم الموبايل وكلمة المرور. طلبات التاجر والمندوب تمر بمراجعة الإدارة قبل تفعيل الدور.</Muted></View>
+    <Card><Text style={s.title}>🏪 حساب تاجر</Text><Muted>اسم النشاط، نوعه، العنوان، الموقع الجغرافي، ولوجو أو صورة واضحة للنشاط.</Muted>{merchant?<Status value={merchant.status}/>:null}<Button title={merchant?.status==='pending'?'طلب التاجر قيد المراجعة':'استكمال تسجيل التاجر'} onPress={()=>router.push({pathname:'/onboarding',params:{role:'merchant'}})} disabled={merchant?.status==='pending'}/></Card>
+    <Card><Text style={s.title}>🛵 حساب مندوب</Text><Muted>وسيلة التوصيل، نوع الموتوسيكل عند استخدامه، صورة شخصية، ورخص القيادة والموتوسيكل وش وظهر.</Muted>{driver?<Status value={driver.status}/>:null}<Button title={driver?.status==='pending'?'طلب المندوب قيد المراجعة':'استكمال تسجيل المندوب'} onPress={()=>router.push({pathname:'/onboarding',params:{role:'driver'}})} disabled={driver?.status==='pending'}/></Card>
+  </ScrollView>;
 }
+function Status({value}:{value:string}){const labels:Record<string,string>={pending:'قيد مراجعة الإدارة',approved:'تمت الموافقة',rejected:'تم الرفض'};return <View style={[s.status,value==='approved'?s.ok:value==='rejected'?s.bad:s.wait]}><Text style={s.statusText}>{labels[value]??value}</Text></View>}
+const s=StyleSheet.create({page:{flex:1,backgroundColor:'#f5f7fa'},content:{padding:18,paddingBottom:40,gap:14,direction:'rtl'},hero:{backgroundColor:'#17212f',borderRadius:30,padding:22,gap:8},kicker:{color:'#fb923c',fontWeight:'900',textAlign:'right'},title:{fontSize:19,fontWeight:'900',textAlign:'right',color:'#101828'},status:{borderRadius:12,padding:10},wait:{backgroundColor:'#fffaeb'},ok:{backgroundColor:'#ecfdf3'},bad:{backgroundColor:'#fef3f2'},statusText:{fontWeight:'900',textAlign:'right',color:'#344054'}});
