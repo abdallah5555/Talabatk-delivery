@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, FlatList, Text, View } from 'react-native';
 import { Button, Card, Field, Muted, Screen, Title } from '@/src/components/ui';
@@ -14,6 +14,7 @@ export default function MerchantStoreManagement() {
 
   return <Screen>
     <Title>إدارة المتجر</Title>
+    <Button title="التقارير ونقطة البيع POS" onPress={() => router.push(`/merchant/report/${storeId}`)} />
     <View style={{ flexDirection: 'row-reverse', gap: 8 }}>
       <View style={{ flex: 1 }}><Button title="المنيو" onPress={() => setTab('menu')} /></View>
       <View style={{ flex: 1 }}><Button title="المخزون" onPress={() => setTab('inventory')} /></View>
