@@ -11,6 +11,9 @@ on:
       - 'eas.json'
       - '.github/workflows/android-apk.yml'
   workflow_dispatch:
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build-apk:
     runs-on: ubuntu-latest
@@ -20,13 +23,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
       - run: npm install --no-audit --no-fund
       - run: cp .env.example .env
-      - run: npx expo prebuild --platform android --non-interactive
+      - run: CI=1 npx expo prebuild --platform android
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
