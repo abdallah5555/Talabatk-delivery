@@ -3,11 +3,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Text, View } from 'react-native';
 import { Button, Card, Field, Muted, Screen, Title } from '@/src/components/ui';
+import { DriverMap } from '@/src/components/DriverMap';
 import { getMyOrder, getOrderTimeline, subscribeToOrder } from '@/src/lib/api';
 import { getMyReview, getReorderLines, submitStoreReview } from '@/src/lib/customerOps';
+import { getDriverLocationForOrder, subscribeToDriverLocation } from '@/src/lib/tracking';
 import { useCart } from '@/src/state/cart';
 
 const labels: Record<string, string> = { pending: 'بانتظار التاجر', accepted: 'تم قبول الطلب', preparing: 'جاري التحضير', ready: 'جاهز للاستلام', assigned: 'تم تعيين مندوب', picked_up: 'استلم المندوب الطلب', on_the_way: 'المندوب في الطريق', delivered: 'تم التسليم', cancelled: 'تم الإلغاء', rejected: 'تم رفض الطلب' };
+const liveStatuses = new Set(['assigned','picked_up','on_the_way']);
 
 export default function OrderTracking() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -19,6 +22,8 @@ export default function OrderTracking() {
   const [reordering, setReordering] = useState(false);
   const order = useQuery({ queryKey: ['order', id], queryFn: () => getMyOrder(id!), enabled: Boolean(id) });
   const timeline = useQuery({ queryKey: ['order-timeline', id], queryFn: () => getOrderTimeline(id!), enabled: Boolean(id) });
+  const liveTracking = Boolean(order.data && liveStatuses.has(order.data.status));
+  const driverLocation = useQuery({ queryKey: ['driver-location', id], queryFn: () => getDriverLocationForOrder(id!), enabled: Boolean(id) && liveTracking, refetchInterval: 30_000 });
   const review = useQuery({ queryKey: ['order-review', id], queryFn: () => getMyReview(id!), enabled: Boolean(id) && order.data?.status === 'delivered' });
 
   useEffect(() => {
@@ -29,6 +34,12 @@ export default function OrderTracking() {
       void qc.invalidateQueries({ queryKey: ['my-orders'] });
     });
   }, [id, qc]);
+
+  useEffect(() => {
+    const driverId = order.data?.driver_id;
+    if (!id || !driverId || !liveTracking) return;
+    return subscribeToDriverLocation(driverId, (location) => qc.setQueryData(['driver-location', id], location));
+  }, [id, liveTracking, order.data?.driver_id, qc]);
 
   async function sendReview() {
     if (!id || submitting) return;
@@ -53,14 +64,14 @@ export default function OrderTracking() {
         return;
       }
       cart.clear();
-      for (const line of lines) {
-        for (let n = 0; n < line.quantity; n += 1) cart.add(line.item);
-      }
+      for (const line of lines) for (let n = 0; n < line.quantity; n += 1) cart.add(line.item);
       router.push('/checkout');
     } catch (e) {
       Alert.alert('تعذر إعادة الطلب', e instanceof Error ? e.message : 'حاول مرة تانية');
     } finally { setReordering(false); }
   }
+
+  const locationAgeSeconds = driverLocation.data?.updated_at ? Math.max(0, Math.floor((Date.now() - new Date(driverLocation.data.updated_at).getTime()) / 1000)) : null;
 
   return <Screen>
     <Title>تتبع الطلب</Title>
@@ -71,6 +82,13 @@ export default function OrderTracking() {
         <Text style={{ fontWeight: '800', textAlign: 'right' }}>{order.data.total.toFixed(2)} ج</Text>
         <Muted>{order.data.delivery_address}</Muted>
       </Card>
+      {liveTracking ? <>
+        <Title>موقع المندوب</Title>
+        {driverLocation.data ? <>
+          <DriverMap latitude={driverLocation.data.latitude} longitude={driverLocation.data.longitude} />
+          <Muted>{locationAgeSeconds != null && locationAgeSeconds > 120 ? 'آخر موقع قديم نسبيًا؛ ممكن يكون GPS أو الشبكة ضعيفة.' : 'الموقع بيتحدث لحظيًا أثناء تشغيل GPS عند المندوب.'}</Muted>
+        </> : <Card><Muted>{driverLocation.isLoading ? 'جاري تحديد موقع المندوب…' : 'لسه مفيش موقع متاح للمندوب.'}</Muted></Card>}
+      </> : null}
       <Title>خط سير الطلب</Title>
       <View style={{ gap: 8 }}>
         {(timeline.data ?? []).map((event) => <Card key={event.id}>
