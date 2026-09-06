@@ -10,6 +10,7 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "@maplibre/maplibre-react-native",
       ["expo-location", { "locationWhenInUsePermission": "طلباتك دليفري يحتاج موقع المندوب أثناء الوردية لتحديث التوصيل وتتبع الطلب." }]
     ],
     "android": {
