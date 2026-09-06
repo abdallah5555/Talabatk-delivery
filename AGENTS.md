@@ -1,109 +1,158 @@
 # AGENTS.md — Talabatk Delivery
 
-This repository is the working repository for **Talabatk Delivery (طلباتك دليفري)**. These instructions are binding for Codex and any coding agent working in this repository.
+These instructions are binding for Codex and any coding agent working in this repository.
+
+## Current product decision — supersedes old frontend/phasing decisions
+The final product is a **single universal codebase** with:
+- **Android:** real installable APK built with React Native + Expo.
+- **iPhone/iPad:** Web/PWA from the same Expo project, installable from Safari Home Screen.
+- **Admin:** a protected Admin role inside the same product; no separate paid admin application is required.
+- **Backend:** Supabase PostgreSQL/Auth/Realtime/Storage/Edge Functions, constrained to the Free plan.
+- **No app-store publishing is required.** Android distribution is direct APK; iOS delivery is PWA.
+
+The older Master Requirements remain the historical product-scope reference, but **this file and `docs/TALABATK_FINAL_SPEC_2026.md` supersede its old instruction to build a single-file HTML prototype first and supersede its PWA-only platform choice.** The user has explicitly requested one complete delivery milestone rather than stopping for approval between phases.
 
 ## Mission
-Build, test, harden and deploy a production-ready Arabic RTL hyperlocal delivery PWA connecting customers, merchants, couriers and admins. Do not reduce scope silently. Continue through implementation, fixes and tests until the requested milestone is actually complete.
+Build the complete production-capable Talabatk Delivery product from this repository. Internal implementation phases/checklists are encouraged, but **do not stop merely because an internal phase is complete**. Continue through implementation, migrations, tests, security fixes, Android build configuration and PWA build configuration until the repository meets the Definition of Done or a genuinely external credential/account setting blocks a specific verification.
 
-## Source of truth
-1. `docs/Talabatk_Delivery_Master_Requirements.md` is the product specification and scope reference.
-2. `prototype/index.html` is a Phase-1 UX/workflow reference only. It contains mock/in-memory data and MUST NOT be treated as production architecture.
-3. This `AGENTS.md` defines engineering/security/testing rules.
-4. If implementation and requirements conflict, preserve security and data integrity and document the conflict.
+## Source of truth priority
+1. `docs/TALABATK_FINAL_SPEC_2026.md` — current binding product/engineering specification.
+2. `docs/FREE_ONLY_POLICY.md` — mandatory zero-cost technology/billing policy.
+3. This `AGENTS.md` — agent behavior, security and completion rules.
+4. `docs/Talabatk_Delivery_Master_Requirements.md` — historical feature-scope source where not contradicted above.
+5. Prototype/legacy material is reference only; never copy insecure/mock architecture into production.
 
-## Product invariants
-- User-facing UI is Arabic and RTL on every screen.
-- Mobile-first responsive UX; desktop remains supported.
-- Roles: customer, merchant, courier/driver, admin.
-- One authenticated user may have multiple roles and switch roles without logging out.
-- Production source of truth is Supabase/PostgreSQL, never browser localStorage/mock data for authoritative business state.
-- Hosting target: Vercel. PWA must be installable.
-- Prefer free-tier services and open-source libraries.
-- Maps: OpenStreetMap + Leaflet. Do not add a paid Google Maps API dependency.
-- No SMS OTP requirement at this stage.
-- Do not enforce a minimum order above 0 unless explicitly requested.
-- Payment modes currently supported: cash and merchant-paid-online representation; do not invent a payment gateway.
-- Coupon discounts at checkout are disabled unless explicitly re-enabled.
+## Absolute zero-cost rule
+- Do not introduce a service that requires a subscription, credit card, paid API key, paid SMS, per-transaction platform fee, paid map API, or paid add-on for the required product to function.
+- Do not silently select a free trial that later charges.
+- Do not enable Supabase paid add-ons such as PITR.
+- Do not add Paymob/Kashier/Stripe or another real payment gateway in the required implementation.
+- Do not add SMS OTP or Firebase Phone Auth.
+- Do not add Google Maps Platform APIs.
+- Prefer open-source libraries and services with a durable no-cost path.
+- If a free hosted quota can be exhausted, implement graceful quota monitoring/degradation and document a local/self-hostable fallback when practical.
+- Required operation must remain usable without app-store accounts.
 
 ## Required stack
-- React + Vite + TypeScript.
-- Supabase: PostgreSQL, Auth, Realtime where appropriate, RLS.
-- Playwright for real E2E tests.
-- PWA manifest + service worker.
-- Vercel deployment.
-- OSM/Leaflet for maps/location UI.
+- React Native + Expo + TypeScript.
+- Expo Router for universal Android/web navigation and deep links.
+- Expo Web export + manifest + Workbox service worker for iPhone/desktop PWA.
+- Supabase PostgreSQL/Auth/Realtime/Storage/Edge Functions where needed.
+- TanStack Query for server-state caching/retry/invalidation.
+- Zod (or equivalent open-source schema validation) for boundary validation.
+- MapLibre on Android/web with OpenStreetMap-derived data. Prefer a truly free tile/style source such as OpenFreeMap or another provider whose terms allow the intended usage. Keep the provider configurable; never hard-code a paid provider.
+- Expo Notifications / Expo Push service for Android push where configured; Supabase Realtime in-app notifications are mandatory even without push credentials. Web/PWA notifications should be implemented where platform support permits.
+- Vitest/Jest-style unit/integration testing as appropriate plus real E2E coverage for web/PWA; add Android device/emulator smoke coverage where practical.
+- GitHub Actions CI using only free/public-repository capabilities.
+
+## Product invariants
+- User-facing UI is Arabic RTL on every screen. Code/types/docs may be English.
+- Mobile-first UX.
+- Roles: customer, merchant, driver/courier, admin.
+- One authenticated account may hold multiple approved roles and switch without logout.
+- Supabase/PostgreSQL is the authoritative source of truth for users, roles, stores, products, orders, totals, statuses, payments, driver availability/capacity and security state.
+- Device/local storage may cache non-authoritative UI state, drafts, opaque session/device tokens and cart drafts, but must never grant roles, change authorization, invent successful orders or override server truth.
+- Minimum order value remains 0 unless the user explicitly changes it.
+- Driver commission currently remains 100% to the driver; the platform takes no delivery commission.
+- Payment modes in scope: `cash` and `merchant_paid_online` as a recorded/manual mode only. No gateway integration.
+- Coupon discounting at checkout is disabled in the required release unless explicitly re-enabled later.
+- No mock/test account details in production UI.
 
 ## Security requirements
-- Never commit secrets, tokens, service-role keys, private credentials or real user data.
-- Frontend may use only public/anon configuration intended for browsers.
-- Privileged operations belong in trusted backend/Edge/Server functions.
-- Enable and test RLS for production tables. UI role checks are not authorization.
-- Supabase Auth is authoritative for authentication. Never store plaintext passwords or password hashes in app tables.
-- PINs, if used, must be securely hashed/verified server-side and must never be stored in plaintext.
-- Do not trust localStorage for roles, authorization, balances, orders, availability or sensitive state.
-- Prevent IDOR/cross-tenant access: merchants cannot access another merchant's private data; drivers cannot access unauthorized orders; customers cannot access another customer's private orders; admin access must be explicitly authorized.
-- Reveal private contact information only at the allowed order stage and to authorized participants.
-- Validate order totals and state transitions server-side/database-side; never trust client-calculated totals for authoritative writes.
-- Driver acceptance must be atomic and race-safe.
-- Admin account creation/privilege elevation must not be possible from an untrusted client.
-- Telegram or other secret-backed integrations must run server-side.
-- Backups/exports must exclude secrets and credential material.
-- Maintain audit logs for sensitive admin/security actions.
+- Never commit secrets, service-role keys, bot tokens, private credentials, real user data, test auth state or production database dumps.
+- Privileged operations must live in trusted Postgres RPC/trigger logic or Supabase Edge Functions.
+- Enable RLS on every exposed production table and test negative/cross-tenant access.
+- UI role checks are never authorization.
+- Auth must use Supabase Auth/session authority. Never store plaintext passwords or password hashes in public app tables.
+- Required login UX is phone + password without paid SMS OTP. Configure the auth flow so no paid verification channel is required.
+- PIN, when enabled as secondary re-authentication, is verified server-side only. Never return `pin_hash` to clients. Add attempt counting/temporary lockout.
+- Trusted-device support must use an opaque generated device token with server-side validation; native secure storage should be used on Android. A client-stored identifier is never itself authorization.
+- Admin creation/role elevation cannot be performed by an ordinary client.
+- Prevent IDOR/cross-tenant access for every role.
+- Contact details are masked until the participant is authorized by the order lifecycle.
+- Totals, delivery fees, store ownership and valid order-state transitions are validated server-side.
+- Order creation is transactional/race-safe.
+- Driver claiming is atomic; competing drivers cannot both win the same order.
+- Driver capacity and availability are server-controlled through safe RPCs.
+- Merchant can update only orders belonging to owned stores.
+- Drivers can update only their own locations and allowed order steps.
+- Customers can see/manage only their own private data/orders.
+- SECURITY DEFINER RPCs must use explicit safe `search_path`, internal auth/role checks and minimal execute grants.
+- Telegram/notification secrets, if used, remain server-side only.
+- Maintain immutable/append-oriented audit logs for sensitive admin/security actions.
+- Provide privacy controls including account/data-deletion request flow and minimal retention of sensitive location data.
 
-## Core data/domain expectations
-Design migrations/types/services around, at minimum, users/profiles, user_roles, stores, menu/products, orders, order_items, driver/courier state, applications, ratings/reviews, notifications, complaints and audit logs. Add trusted-device/PIN/security tables only when required by the active implementation. RLS and constraints must accompany schema changes.
+## Required feature coverage
+Implement the complete feature catalogue in `docs/TALABATK_FINAL_SPEC_2026.md`, including customer, merchant, driver and admin features; applications/approvals; realtime order lifecycle; GPS; notifications; complaints; ratings; favorites; saved addresses; reorder; scheduling; search; inventory/POS/reporting; maintenance mode; free-tier monitoring; audit/security; accessibility; network failure and PWA behavior.
 
-## Order flow
-Customer browses stores -> cart -> address/checkout -> order creation -> merchant accepts/prepares -> ready -> eligible driver accepts atomically -> on the way -> delivered -> rating/history. Multi-store carts must preserve correct per-store order ownership and totals. Invalid transitions must be rejected, not merely hidden in the UI.
+## Authentication/login UX
+The login/signup screens are customer-facing marketing surfaces. Do NOT expose internal phrases such as “one account combines roles”, “no email”, “no SMS”, architecture notes, test credentials or implementation details. Use concise Arabic benefit-oriented copy.
 
-## Role requirements
-### Customer
-Browse/filter stores and products, favorites, saved addresses, cart, checkout, order history/tracking, notes, ratings and useful notifications. Handle closed/unavailable stores, stock changes and network failure safely.
+## Maps/location rules
+- No Google Maps paid API.
+- Map provider/style URL must be configurable through public non-secret configuration.
+- Always display required OpenStreetMap/provider attribution.
+- Do not implement prohibited bulk tile prefetching against community OSM servers.
+- GPS permission must be contextual and revocable.
+- Persist only the minimum driver location history needed for active delivery/operations; avoid indefinite high-frequency tracking.
+- Handle denied permission, stale coordinates, GPS loss and network loss safely.
 
-### Merchant
-Own-store isolation, product/menu CRUD, availability/stock, incoming order accept/reject/preparation flow, POS where in scope, sales/reporting and merchant application flow.
+## Offline/network rules
+- Android should remain navigable through transient network failure and keep safe local drafts where useful.
+- PWA service worker should cache static assets carefully; never cache private authenticated API responses in a cross-user-leaking way.
+- Do not show an order/action as completed until the authoritative write succeeds.
+- Mutations that can be safely retried need idempotency/deduplication protection.
+- Show Arabic retry/offline states instead of silent failures.
+- Test recovery after reload/reconnect.
 
-### Driver/Courier
-Application/approval flow, persisted availability, nearby/eligible orders, atomic acceptance, capacity/batching rules, delivery lifecycle, earnings, location/GPS and safe failure/retry behavior.
-
-### Admin
-Secure RBAC, users/applications/orders/complaints/audit visibility, platform settings and maintenance controls. Never expose privileged controls based only on client state.
-
-## Authentication UX
-The login/signup page is a customer-facing marketing surface. Do NOT display internal architecture statements such as “one account combines roles”, “without email”, “without SMS”, implementation details, test credentials or security design. Use concise Arabic benefit-oriented copy. Registration must be a real reachable flow and tested.
-
-## PWA/offline/network behavior
-- Service-worker tests must be browser-safe and deterministic.
-- Do not cache authenticated/private API responses in a way that can leak data between users.
-- Provide safe offline/network-error states and retry behavior.
-- Never report an order/action as successful until the authoritative write succeeded.
-- Test reload/persistence boundaries and stale state.
+## Performance/accessibility
+- Lazy-load heavy role routes/screens/maps.
+- Compress uploaded store/product images before upload and enforce file limits.
+- Paginate/virtualize large admin/order lists.
+- Use database indexes for common filters/search/geo bounding queries.
+- Support text scaling/zoom, screen-reader labels, logical focus order, sufficient contrast and touch targets.
+- Avoid aggressive PWA caching that can strand users on stale versions.
 
 ## Testing gate
-Do not claim completion merely because build succeeds. Before a production-ready milestone, run and fix:
+Completion requires more than a successful build. Run/fix as applicable:
 1. TypeScript/typecheck.
 2. Lint.
-3. Unit/integration tests where present.
-4. Production build.
-5. Playwright E2E against realistic app state.
-6. Security/RLS checks for cross-role and cross-tenant access.
-7. Network-failure and retry scenarios.
-8. PWA/service-worker/installability checks.
-9. Mobile viewport and basic accessibility checks.
+3. Unit tests for critical pure/domain/security helpers.
+4. Database migration validation on a clean local/test database where tooling permits.
+5. RLS/RPC negative tests for cross-user/cross-role access.
+6. Web/PWA E2E covering signup/login/session/role routing/customer/merchant/driver/admin flows.
+7. Atomic competing-driver acceptance test.
+8. Invalid state-transition and tampered-total tests.
+9. Network/offline/retry/idempotency tests.
+10. PWA manifest/service-worker/installability/deep-link tests.
+11. Android build or prebuild verification and at least a launch/smoke path on emulator/device when environment permits.
+12. Accessibility/mobile viewport checks.
+13. Production web export.
+14. Direct-install Android APK configuration/build path.
 
-Critical E2E coverage must include: signup/login/logout/session restore; role routing; customer browse/cart/checkout/order tracking; merchant order lifecycle; driver availability/acceptance/delivery; atomic competing-driver acceptance; unauthorized/cross-account access; invalid state transitions; network failure; reload persistence; PWA/service worker behavior; and production-safe login/signup copy.
+Tests must be deterministic. Seed/reset state deliberately. Prefer semantic/accessibility locators. Do not “fix” failing tests by deleting coverage, adding arbitrary sleeps, broad retries, `.skip`, or weakening security assertions.
 
-Use resilient accessible Playwright locators (`getByRole`, labels, stable test ids where needed). Avoid brittle CSS/text assumptions when a semantic locator is available. Keep tests isolated and seed/reset state deterministically.
+## One-stage execution rule for Codex
+Treat the entire product as **one delivery milestone**. You may implement in an internal sequence (foundation -> database/security -> auth -> roles -> order flow -> features -> offline/PWA -> tests/build), but do not request user approval after each internal stage and do not stop at an audit/report. Fix discovered defects as part of the same assignment until the Definition of Done is reached.
 
-## Definition of done
-A task is done only when the implementation is complete, relevant tests pass, build/lint/type checks pass, no known critical security regression remains, and documentation/env examples are updated. If a dependency or external credential blocks verification, state exactly what is blocked and leave the repository in a reproducible state.
+## Definition of Done
+The repository is ready only when:
+- required feature scope is implemented or a specific external credential/account setting is the only blocker;
+- migrations/schema/RLS/RPCs are reproducible;
+- no mock business data is used as production truth;
+- relevant tests pass;
+- lint/typecheck/build pass;
+- web export is a working installable PWA;
+- Android project can generate a directly installable APK with documented free/local commands;
+- no required feature depends on a paid service;
+- security/privacy checks are satisfied;
+- `.env.example`, setup docs and final status are current.
 
 ## Git discipline
 - Keep commits focused and descriptive.
-- Never commit `.env*` secrets, Playwright auth state, generated credentials, node_modules, build output or private dumps.
-- Do not rewrite unrelated working code without reason.
-- Prefer migrations over manual database drift.
-- Preserve backwards-compatible data migrations where practical.
+- Use migrations; do not rely on manual schema drift.
+- Never rewrite unrelated code without reason.
+- Never commit generated credentials, APK signing secrets, `.env`, node_modules, build outputs, private dumps or Playwright auth state.
 
 ## Handoff rule
-Before stopping, leave a concise status in repository documentation or the task/PR: what changed, commands run, pass/fail results, remaining blockers and exact next action. Never fabricate test/deployment results.
+Before stopping, leave a concise status in the repository: completed features, files/migrations added, exact commands run, pass/fail results, external configuration still needed, and exact next action. Never fabricate tests, deployments or builds.
