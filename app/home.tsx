@@ -1,35 +1,27 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FlatList, Pressable, Text, View } from 'react-native';
-import { router } from 'expo-router';
-import { Button, Card, Field, Muted, Screen, Title } from '@/src/components/ui';
-import { getStores } from '@/src/lib/api';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Redirect, router } from 'expo-router';
+import { Field, Muted, colors } from '@/src/components/ui';
+import { getMyRoles, getStores } from '@/src/lib/api';
 import { getActiveAds, pickAd } from '@/src/lib/ads';
 import { AdSlot } from '@/src/components/AdSlot';
 
-export default function Home() {
-  const stores = useQuery({ queryKey: ['stores'], queryFn: getStores });
-  const ads = useQuery({ queryKey:['ads'], queryFn:getActiveAds, staleTime:60_000 });
-  const [search,setSearch]=useState('');
-  const [openOnly,setOpenOnly]=useState(false);
-  const [category,setCategory]=useState('الكل');
+export default function Home(){
+  const roles=useQuery({queryKey:['roles'],queryFn:getMyRoles});
+  const stores=useQuery({queryKey:['stores'],queryFn:getStores});
+  const ads=useQuery({queryKey:['ads'],queryFn:getActiveAds,staleTime:60_000});
+  const [search,setSearch]=useState('');const[openOnly,setOpenOnly]=useState(false);const[category,setCategory]=useState('الكل');
   const categories=useMemo(()=>['الكل',...Array.from(new Set((stores.data??[]).map(x=>x.category).filter((x):x is string=>Boolean(x))))],[stores.data]);
-  const visible=useMemo(()=>{
-    const q=search.trim().toLocaleLowerCase('ar');
-    return (stores.data??[]).filter(s=>(!openOnly||s.is_open)&&(category==='الكل'||s.category===category)&&(!q||`${s.name} ${s.category??''} ${s.description??''}`.toLocaleLowerCase('ar').includes(q)));
-  },[stores.data,search,openOnly,category]);
-  return <Screen>
-    <Title>إيه اللي محتاجه النهارده؟</Title>
-    <Muted>اختار متجر واطلب، وإحنا نخليك متابع كل خطوة.</Muted>
-    <AdSlot ad={pickAd(ads.data,'home_top')} />
-    <View style={{ flexDirection: 'row-reverse', gap: 8 }}><View style={{ flex: 1 }}><Button title="طلباتي" onPress={() => router.push('/orders')} /></View><View style={{ flex: 1 }}><Button title="حسابي" onPress={() => router.push('/account')} /></View></View>
-    <Field accessibilityLabel="بحث المتاجر" placeholder="دور باسم المتجر أو النوع" value={search} onChangeText={setSearch}/>
-    <View style={{flexDirection:'row-reverse',gap:8,flexWrap:'wrap'}}>
-      <Pressable accessibilityRole="button" onPress={()=>setOpenOnly(v=>!v)} style={{padding:10,borderWidth:1,borderRadius:12}}><Text>{openOnly?'✓ المفتوح الآن':'المفتوح الآن'}</Text></Pressable>
-      {categories.slice(0,5).map(c=><Pressable key={c} accessibilityRole="button" onPress={()=>setCategory(c)} style={{padding:10,borderWidth:1,borderRadius:12}}><Text style={{fontWeight:category===c?'900':'400'}}>{c}</Text></Pressable>)}
-    </View>
-    <AdSlot ad={pickAd(ads.data,'home_feed')} />
-    {stores.isError ? <Muted>تعذر تحميل المتاجر. حاول مرة أخرى.</Muted> : null}
-    <FlatList data={visible} refreshing={stores.isFetching} onRefresh={() => stores.refetch()} keyExtractor={(x) => x.id} contentContainerStyle={{ gap: 10 }} ListEmptyComponent={<Muted>{stores.isLoading?'جاري تحميل المتاجر…':'مفيش متاجر مطابقة للبحث.'}</Muted>} renderItem={({ item }) => <Pressable accessibilityRole="button" accessibilityLabel={`فتح متجر ${item.name}`} onPress={() => router.push({ pathname: '/store/[id]', params: { id: item.id } })}><Card><Text style={{ fontWeight: '800', fontSize: 18, textAlign: 'right' }}>{item.name}</Text><Muted>{item.category ?? 'متجر'} • ⭐ {item.rating.toFixed(1)}</Muted><Muted>{item.is_open ? `مفتوح • التوصيل ${item.delivery_fee} ج` : 'مغلق حاليًا'}</Muted></Card></Pressable>} />
-  </Screen>;
+  const visible=useMemo(()=>{const q=search.trim().toLocaleLowerCase('ar');return(stores.data??[]).filter(s=>(!openOnly||s.is_open)&&(category==='الكل'||s.category===category)&&(!q||`${s.name} ${s.category??''} ${s.description??''}`.toLocaleLowerCase('ar').includes(q)));},[stores.data,search,openOnly,category]);
+  if(roles.data?.includes('admin'))return <Redirect href="/admin"/>;
+  return <View style={s.page}><FlatList data={visible} keyExtractor={x=>x.id} refreshing={stores.isFetching} onRefresh={()=>stores.refetch()} contentContainerStyle={s.content} ListHeaderComponent={<View style={s.headerWrap}>
+    <View style={s.hero}><View style={s.brandRow}><Text style={s.brand}>طلباتك</Text><View style={s.brandDot}/></View><Text style={s.heroTitle}>كل اللي محتاجه، أقرب ليك</Text><Text style={s.heroText}>اختار المكان، اطلب بسهولة، وتابع التوصيل خطوة بخطوة.</Text><View style={s.quickRow}><Quick title="طلباتي" icon="🧾" onPress={()=>router.push('/orders')}/><Quick title="حسابي" icon="👤" onPress={()=>router.push('/account')}/><Quick title="الأذكار" icon="🤲" onPress={()=>router.push('/adhkar')}/></View></View>
+    <AdSlot ad={pickAd(ads.data,'home_top')}/>
+    <View style={s.searchCard}><Text style={s.heading}>تدور على إيه؟</Text><Field accessibilityLabel="بحث المتاجر" placeholder="اسم المتجر أو نوع النشاط" value={search} onChangeText={setSearch}/><View style={s.filters}><Pressable onPress={()=>setOpenOnly(v=>!v)} style={[s.chip,openOnly&&s.chipActive]}><Text style={[s.chipText,openOnly&&s.chipTextActive]}>{openOnly?'✓ المفتوح الآن':'المفتوح الآن'}</Text></Pressable>{categories.slice(0,6).map(c=><Pressable key={c} onPress={()=>setCategory(c)} style={[s.chip,category===c&&s.chipActive]}><Text style={[s.chipText,category===c&&s.chipTextActive]}>{c}</Text></Pressable>)}</View></View>
+    <AdSlot ad={pickAd(ads.data,'home_feed')}/><View style={s.sectionRow}><Text style={s.heading}>أماكن مقترحة ليك</Text><Text style={s.count}>{visible.length} مكان</Text></View>{stores.isError?<Muted>تعذر تحميل المتاجر. اسحب للتحديث.</Muted>:null}
+  </View>} ListEmptyComponent={<View style={s.empty}><Text style={s.emptyIcon}>🔎</Text><Text style={s.emptyTitle}>{stores.isLoading?'جاري تحميل الأماكن…':'مفيش نتائج مطابقة'}</Text><Muted>{stores.isLoading?'':'جرّب اسم أو تصنيف مختلف.'}</Muted></View>} renderItem={({item})=><Pressable onPress={()=>router.push({pathname:'/store/[id]',params:{id:item.id}})} style={({pressed})=>[s.storeCard,pressed&&{opacity:0.9}]}><View style={s.imageWrap}>{item.image_url?<Image source={{uri:item.image_url}} style={s.storeImage} contentFit="cover"/>:<View style={s.placeholder}><Text style={s.placeholderText}>🏪</Text></View>}<View style={[s.openBadge,!item.is_open&&s.closedBadge]}><Text style={[s.openText,!item.is_open&&s.closedText]}>{item.is_open?'مفتوح':'مغلق'}</Text></View></View><View style={s.storeBody}><View style={s.storeTop}><View style={s.flex}><Text style={s.storeName}>{item.name}</Text><Text style={s.category}>{item.category??'متجر'}</Text></View><View style={s.rating}><Text style={s.ratingText}>★ {item.rating.toFixed(1)}</Text></View></View><View style={s.storeBottom}><Text style={s.meta}>توصيل {item.delivery_fee.toFixed(0)} ج</Text><Text style={s.meta}>{item.prep_minutes??25} دقيقة تجهيز</Text></View></View></Pressable>}/></View>;
 }
+function Quick({title,icon,onPress}:{title:string;icon:string;onPress:()=>void}){return <Pressable accessibilityRole="button" onPress={onPress} style={s.quick}><Text style={s.quickIcon}>{icon}</Text><Text style={s.quickText}>{title}</Text></Pressable>}
+const s=StyleSheet.create({page:{flex:1,backgroundColor:'#f5f7fa'},content:{padding:16,paddingBottom:42,gap:12},headerWrap:{gap:13},hero:{backgroundColor:'#17212f',borderRadius:30,padding:22,gap:8},brandRow:{flexDirection:'row-reverse',alignItems:'center',gap:7},brand:{color:'#fb923c',fontWeight:'900',fontSize:17},brandDot:{width:7,height:7,borderRadius:4,backgroundColor:'#12b76a'},heroTitle:{fontSize:28,lineHeight:36,fontWeight:'900',color:'#fff',textAlign:'right'},heroText:{color:'#d0d5dd',lineHeight:22,textAlign:'right'},quickRow:{flexDirection:'row-reverse',gap:8,marginTop:6},quick:{flex:1,backgroundColor:'#253246',borderRadius:16,padding:11,alignItems:'center',gap:4},quickIcon:{fontSize:19},quickText:{color:'#fff',fontSize:11,fontWeight:'800'},searchCard:{backgroundColor:'#fff',borderRadius:22,padding:16,gap:11,borderWidth:1,borderColor:'#eaecf0'},heading:{fontSize:19,fontWeight:'900',color:'#101828',textAlign:'right'},filters:{flexDirection:'row-reverse',flexWrap:'wrap',gap:7},chip:{paddingHorizontal:12,paddingVertical:8,borderRadius:999,backgroundColor:'#f2f4f7',borderWidth:1,borderColor:'#eaecf0'},chipActive:{backgroundColor:'#fff4ed',borderColor:colors.primary},chipText:{fontSize:12,fontWeight:'800',color:'#475467'},chipTextActive:{color:'#b93815'},sectionRow:{flexDirection:'row-reverse',justifyContent:'space-between',alignItems:'center'},count:{fontSize:12,color:'#667085'},storeCard:{backgroundColor:'#fff',borderRadius:24,overflow:'hidden',borderWidth:1,borderColor:'#eaecf0',marginBottom:2},imageWrap:{height:155,backgroundColor:'#f2f4f7'},storeImage:{width:'100%',height:'100%'},placeholder:{flex:1,alignItems:'center',justifyContent:'center'},placeholderText:{fontSize:45},openBadge:{position:'absolute',top:10,right:10,backgroundColor:'#ecfdf3',borderRadius:999,paddingHorizontal:10,paddingVertical:5},closedBadge:{backgroundColor:'#fef3f2'},openText:{fontSize:11,fontWeight:'900',color:'#067647'},closedText:{color:'#b42318'},storeBody:{padding:15,gap:10},storeTop:{flexDirection:'row-reverse',gap:10,alignItems:'flex-start'},flex:{flex:1},storeName:{fontSize:19,fontWeight:'900',color:'#101828',textAlign:'right'},category:{fontSize:12,color:'#667085',textAlign:'right',marginTop:3},rating:{backgroundColor:'#fffaeb',paddingHorizontal:9,paddingVertical:6,borderRadius:11},ratingText:{fontWeight:'900',fontSize:12,color:'#b54708'},storeBottom:{flexDirection:'row-reverse',gap:8},meta:{fontSize:12,color:'#475467',backgroundColor:'#f9fafb',borderRadius:10,paddingHorizontal:9,paddingVertical:6},empty:{paddingVertical:46,alignItems:'center',gap:5},emptyIcon:{fontSize:38},emptyTitle:{fontSize:17,fontWeight:'900',color:'#344054'}});
