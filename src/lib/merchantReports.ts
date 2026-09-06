@@ -1,5 +1,11 @@
 import { supabase } from './supabase';
 
+export async function getMerchantServiceAccess(storeId:string){
+  const {data,error}=await supabase.rpc('get_my_store_service_access',{p_store_id:storeId});
+  if(error) throw error;
+  return Array.isArray(data)?data[0]??null:data;
+}
+
 export async function createPosSale(storeId:string,items:Array<{menuItemId:string;quantity:number}>,note=''){
   if(!items.length) throw new Error('أضف منتجًا واحدًا على الأقل.');
   const {data,error}=await supabase.rpc('create_pos_sale',{p_store_id:storeId,p_items:items.map(x=>({menu_item_id:x.menuItemId,quantity:x.quantity})),p_note:note.trim()});
