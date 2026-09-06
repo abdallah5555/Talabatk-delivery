@@ -8,9 +8,9 @@ async function uid() {
 
 export async function getDriverEarnings() {
   const userId = await uid();
-  const { data, error } = await supabase.from('orders').select('id,delivery_fee,delivered_at,updated_at,created_at').eq('driver_id', userId).eq('status','delivered').order('updated_at',{ascending:false}).limit(500);
+  const { data, error } = await supabase.from('orders').select('id,delivery_fee,updated_at,created_at').eq('driver_id', userId).eq('status','delivered').order('updated_at',{ascending:false}).limit(500);
   if (error) throw error;
-  const rows=(data??[]).map((x:any)=>({id:x.id,delivery_fee:Number(x.delivery_fee??0),date:x.delivered_at??x.updated_at??x.created_at}));
+  const rows=(data??[]).map((x:any)=>({id:x.id,delivery_fee:Number(x.delivery_fee??0),date:x.updated_at??x.created_at}));
   const now=Date.now(); const day=24*60*60*1000;
   return {
     rows,
@@ -31,6 +31,7 @@ export async function getDriverReviews() {
 
 export async function submitDriverIssue(input:{orderId?:string|null;category:'wrong_address'|'customer_unavailable'|'merchant_delay'|'vehicle_route'|'other';message:string}) {
   const userId=await uid();
+  if (!input.message.trim()) throw new Error('اكتب تفاصيل المشكلة.');
   const {data,error}=await supabase.from('driver_issues').insert({driver_id:userId,order_id:input.orderId||null,category:input.category,message:input.message.trim()}).select().single();
   if(error) throw error;
   return data;
