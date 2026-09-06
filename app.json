@@ -5,11 +5,16 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "talabatk",
+    "icon": "./public/icons/icon-512.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "plugins": ["expo-router", "expo-secure-store"],
     "android": {
       "package": "com.talabatk.delivery",
+      "adaptiveIcon": {
+        "foregroundImage": "./public/icons/icon-512.png",
+        "backgroundColor": "#e8590c"
+      },
       "permissions": []
     },
     "web": {
