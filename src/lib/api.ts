@@ -29,14 +29,14 @@ export async function getMyOrders(): Promise<Order[]> {
   return (data ?? []).map((row) => ({ ...row, subtotal: Number(row.subtotal), delivery_fee: Number(row.delivery_fee), total: Number(row.total) })) as Order[];
 }
 
-export async function createOrder(input: { storeId: string; items: Array<{ id: string; quantity: number }>; address: string; note?: string }) {
-  const { data, error } = await supabase.rpc('create_order_secure', {
+export async function createOrder(input: { storeId: string; items: Array<{ id: string; quantity: number }>; address: string; note?: string; requestId: string }) {
+  const { data, error } = await supabase.rpc('create_order_idempotent', {
     p_store_id: input.storeId,
     p_items: input.items.map((item) => ({ menu_item_id: item.id, quantity: item.quantity })),
     p_address: input.address,
+    p_request_id: input.requestId,
     p_payment_method: 'cash',
-    p_note: input.note ?? null,
-    p_coupon_code: null,
+    p_note: input.note ?? '',
   });
   if (error) throw error;
   return data;
