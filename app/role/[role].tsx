@@ -1,9 +1,11 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, FlatList, Text, View } from 'react-native';
 import { Button, Card, Muted, Screen, Title } from '@/src/components/ui';
 import { getMyRoles } from '@/src/lib/api';
 import { acceptDriverOrder, advanceDriverOrder, decideApplication, getAdminQueues, getAvailableDriverOrders, getDriverState, getMerchantOrders, getMerchantStores, getMyDriverOrders, merchantUpdateOrder, setDriverAvailability, updateComplaint } from '@/src/lib/features';
+import { startDriverLocationUpdates } from '@/src/lib/driverLocation';
 import type { Role } from '@/src/types/domain';
 
 const names: Record<Role, string> = { customer: 'العميل', merchant: 'التاجر', driver: 'المندوب', admin: 'الإدارة' };
@@ -28,7 +30,13 @@ function MerchantDashboard() {
     try { await merchantUpdateOrder(id, status); await client.invalidateQueries({ queryKey: ['merchant-orders'] }); }
     catch (e) { Alert.alert('تعذر تحديث الطلب', e instanceof Error ? e.message : 'حاول مرة أخرى'); }
   }
-  return <Screen><Title>لوحة التاجر</Title><Muted>{stores.data?.length ? `عندك ${stores.data.length} متجر` : 'لا يوجد متجر معتمد للحساب.'}</Muted><FlatList data={orders.data ?? []} keyExtractor={(x) => x.id} contentContainerStyle={{ gap: 10 }} ListEmptyComponent={<Muted>لا توجد طلبات تشغيل حالية.</Muted>} renderItem={({ item }) => <Card><Text style={{ textAlign: 'right', fontWeight: '900' }}>طلب #{item.id.slice(0,8)}</Text><Muted>الحالة: {item.status} • الإجمالي {item.total.toFixed(2)} ج</Muted><View style={{ gap: 7 }}>{item.status==='pending' ? <><Button title="قبول الطلب" onPress={() => move(item.id,'accepted')} /><Button title="رفض الطلب" onPress={() => move(item.id,'rejected')} /></> : null}{item.status==='accepted' ? <Button title="بدء التحضير" onPress={() => move(item.id,'preparing')} /> : null}{item.status==='preparing' ? <Button title="جاهز للاستلام" onPress={() => move(item.id,'ready')} /> : null}</View></Card>} /></Screen>;
+  return <Screen>
+    <Title>لوحة التاجر</Title>
+    <Muted>{stores.data?.length ? `عندك ${stores.data.length} متجر` : 'لا يوجد متجر معتمد للحساب.'}</Muted>
+    {(stores.data ?? []).map((store: any) => <Card key={store.id}><Text style={{ textAlign:'right', fontWeight:'900' }}>{store.name}</Text><Muted>{store.category} • {store.is_open ? 'مفتوح' : 'مغلق'}</Muted><Button title="إدارة المنيو والمخزون" onPress={() => router.push(`/merchant/${store.id}`)} /></Card>)}
+    <Title>الطلبات الجارية</Title>
+    <FlatList data={orders.data ?? []} keyExtractor={(x) => x.id} contentContainerStyle={{ gap: 10 }} ListEmptyComponent={<Muted>لا توجد طلبات تشغيل حالية.</Muted>} renderItem={({ item }) => <Card><Text style={{ textAlign: 'right', fontWeight: '900' }}>طلب #{item.id.slice(0,8)}</Text><Muted>الحالة: {item.status} • الإجمالي {item.total.toFixed(2)} ج</Muted><View style={{ gap: 7 }}>{item.status==='pending' ? <><Button title="قبول الطلب" onPress={() => move(item.id,'accepted')} /><Button title="رفض الطلب" onPress={() => move(item.id,'rejected')} /></> : null}{item.status==='accepted' ? <Button title="بدء التحضير" onPress={() => move(item.id,'preparing')} /> : null}{item.status==='preparing' ? <Button title="جاهز للاستلام" onPress={() => move(item.id,'ready')} /> : null}</View></Card>} />
+  </Screen>;
 }
 
 function DriverDashboard() {
@@ -36,6 +44,17 @@ function DriverDashboard() {
   const state = useQuery({ queryKey: ['driver-state'], queryFn: getDriverState });
   const available = useQuery({ queryKey: ['driver-available'], queryFn: getAvailableDriverOrders, enabled: !!state.data?.is_online, refetchInterval: 10_000 });
   const active = useQuery({ queryKey: ['driver-active'], queryFn: getMyDriverOrders, refetchInterval: 10_000 });
+
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    if (!state.data?.is_online) return;
+    void startDriverLocationUpdates().then((cleanup) => {
+      if (cancelled) cleanup(); else stop = cleanup;
+    }).catch((e) => Alert.alert('الموقع غير متاح', e instanceof Error ? e.message : 'تعذر تشغيل GPS'));
+    return () => { cancelled = true; stop?.(); };
+  }, [state.data?.is_online]);
+
   async function toggle() {
     try { await setDriverAvailability(!state.data?.is_online); await client.invalidateQueries({ queryKey: ['driver-state'] }); await client.invalidateQueries({ queryKey: ['driver-available'] }); }
     catch (e) { Alert.alert('تعذر تغيير الحالة', e instanceof Error ? e.message : 'حاول مرة أخرى'); }
@@ -48,7 +67,7 @@ function DriverDashboard() {
     try { await advanceDriverOrder(id,status); await client.invalidateQueries({ queryKey: ['driver-active'] }); }
     catch (e) { Alert.alert('تعذر تحديث الطلب', e instanceof Error ? e.message : 'حاول مرة أخرى'); }
   }
-  return <Screen><Title>لوحة المندوب</Title><Card><Text style={{ textAlign: 'right', fontWeight: '900' }}>{state.data?.is_online ? 'متاح لاستقبال الطلبات' : 'غير متاح حاليًا'}</Text><Button title={state.data?.is_online ? 'إنهاء الوردية' : 'ابدأ الوردية'} onPress={toggle} /></Card><Title>طلباتي الحالية</Title>{(active.data ?? []).map((item) => <Card key={item.id}><Text style={{ textAlign: 'right', fontWeight: '900' }}>#{item.id.slice(0,8)} • {item.delivery_fee.toFixed(2)} ج</Text><Muted>{item.status}</Muted>{item.status==='assigned' ? <Button title="تم الاستلام من التاجر" onPress={() => advance(item.id,'picked_up')} /> : null}{item.status==='picked_up' ? <Button title="أنا في الطريق" onPress={() => advance(item.id,'on_the_way')} /> : null}{item.status==='on_the_way' ? <Button title="تم التسليم" onPress={() => advance(item.id,'delivered')} /> : null}</Card>)}<Title>طلبات متاحة</Title><FlatList data={available.data ?? []} keyExtractor={(x) => x.id} contentContainerStyle={{ gap: 10 }} ListEmptyComponent={<Muted>{state.data?.is_online ? 'مفيش طلبات متاحة حاليًا.' : 'فعّل حالة متاح لعرض الطلبات.'}</Muted>} renderItem={({ item }) => <Card><Text style={{ textAlign: 'right', fontWeight: '900' }}>توصيل {item.delivery_fee.toFixed(2)} ج</Text><Muted>العنوان يظهر وفق صلاحية مرحلة الطلب.</Muted><Button title="قبول الطلب" onPress={() => accept(item.id)} /></Card>} /></Screen>;
+  return <Screen><Title>لوحة المندوب</Title><Card><Text style={{ textAlign: 'right', fontWeight: '900' }}>{state.data?.is_online ? 'متاح لاستقبال الطلبات • GPS يعمل أثناء فتح التطبيق' : 'غير متاح حاليًا'}</Text><Button title={state.data?.is_online ? 'إنهاء الوردية' : 'ابدأ الوردية'} onPress={toggle} /></Card><Title>طلباتي الحالية</Title>{(active.data ?? []).map((item) => <Card key={item.id}><Text style={{ textAlign: 'right', fontWeight: '900' }}>#{item.id.slice(0,8)} • {item.delivery_fee.toFixed(2)} ج</Text><Muted>{item.status}</Muted>{item.status==='assigned' ? <Button title="تم الاستلام من التاجر" onPress={() => advance(item.id,'picked_up')} /> : null}{item.status==='picked_up' ? <Button title="أنا في الطريق" onPress={() => advance(item.id,'on_the_way')} /> : null}{item.status==='on_the_way' ? <Button title="تم التسليم" onPress={() => advance(item.id,'delivered')} /> : null}</Card>)}<Title>طلبات متاحة</Title><FlatList data={available.data ?? []} keyExtractor={(x) => x.id} contentContainerStyle={{ gap: 10 }} ListEmptyComponent={<Muted>{state.data?.is_online ? 'مفيش طلبات متاحة حاليًا.' : 'فعّل حالة متاح لعرض الطلبات.'}</Muted>} renderItem={({ item }) => <Card><Text style={{ textAlign: 'right', fontWeight: '900' }}>توصيل {item.delivery_fee.toFixed(2)} ج</Text><Muted>العنوان يظهر وفق صلاحية مرحلة الطلب.</Muted><Button title="قبول الطلب" onPress={() => accept(item.id)} /></Card>} /></Screen>;
 }
 
 function AdminDashboard() {
