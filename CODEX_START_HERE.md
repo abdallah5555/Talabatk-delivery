@@ -4,20 +4,31 @@ Read these files completely, in this order, before implementation:
 
 1. `docs/TALABATK_FINAL_SPEC_2026.md`
 2. `docs/FREE_ONLY_POLICY.md`
-3. `AGENTS.md`
-4. `docs/Talabatk_Delivery_Master_Requirements.md` for historical feature context only where it does not conflict with the current final spec.
+3. `docs/CODEX_ENVIRONMENT.md`
+4. `AGENTS.md`
+5. `docs/Talabatk_Delivery_Master_Requirements.md` for historical feature context only where it does not conflict with the current final spec.
 
 ## Your assignment
 Build the **complete Talabatk Delivery product** in this repository as one delivery milestone.
 
 Do not stop after planning, scaffolding, database setup, a partial role, an audit, a successful build or an internal phase. You may use an internal implementation sequence, but continue through all required features, migrations, security, tests, Android build configuration and PWA configuration until the Definition of Done is reached or a genuinely external credential/account setting is the only remaining blocker.
 
+## Infrastructure access first
+Before implementation, connect the MCP servers declared in `.mcp.json`:
+- Supabase MCP is already scoped to project `vriwhtuxagnbfxybjviz`.
+- Vercel MCP targets the user's Vercel account via OAuth.
+
+Trigger OAuth authorization if the MCP client requests it. Do not ask the user for service-role keys, database passwords or Vercel personal access tokens when OAuth/provider tools can perform the task.
+
+Read `docs/CODEX_ENVIRONMENT.md` so you do not modify the legacy Vercel/GitHub project by mistake.
+
 ## Final architecture you must implement
 - One universal **React Native + Expo + TypeScript** codebase.
 - **Android:** native app distributed directly as APK; no Play Store required.
 - **iPhone/iPad:** same project exported as installable Web/PWA.
 - **Admin:** protected role inside the same app/product.
-- **Backend:** Supabase Free plan only.
+- **Backend:** existing scoped Supabase project on the Free plan, audited and hardened before production use.
+- **Web hosting:** create/link a NEW Vercel project for `abdallah5555/Talabatk-delivery`; do not overwrite the legacy `Talbak-delivery` Vercel project.
 - **Navigation/deep links:** Expo Router.
 - **Server state:** TanStack Query.
 - **Maps:** MapLibre + OpenStreetMap-derived data, with a truly free/configurable tile/style source.
@@ -119,12 +130,15 @@ You are responsible for the full catalogue in `docs/TALABATK_FINAL_SPEC_2026.md`
 
 ## Required working method
 1. Inspect repository and final specifications.
-2. Create a concise internal checklist, then implement it without waiting for user approval between items.
-3. Prefer secure database constraints/RPCs over client trust.
-4. For each defect discovered while testing, fix the product and add/adjust regression coverage.
-5. Never weaken a test/security rule just to make CI green.
-6. Keep `.env.example` and setup documentation current.
-7. Commit no secrets or real production data.
+2. Authenticate MCP provider connections when requested.
+3. Audit the existing Supabase schema/RLS/RPCs before changing them; preserve useful compatible work and fix unsafe/outdated pieces through new migrations.
+4. Create a concise internal checklist, then implement it without waiting for user approval between items.
+5. Prefer secure database constraints/RPCs over client trust.
+6. For each defect discovered while testing, fix the product and add/adjust regression coverage.
+7. Never weaken a test/security rule just to make CI green.
+8. Keep `.env.example` and setup documentation current.
+9. Commit no secrets or real production data.
+10. When the PWA build is ready, create/link the NEW Vercel project and deploy it; inspect logs and fix deployment failures.
 
 ## Completion gate
 Before claiming completion, run every applicable check:
@@ -133,6 +147,7 @@ Before claiming completion, run every applicable check:
 - lint
 - unit/integration tests
 - migration/database validation
+- Supabase security/performance advisors and remediation
 - RLS/RPC negative tests
 - production web/PWA export
 - E2E for customer/merchant/driver/admin
@@ -140,15 +155,16 @@ Before claiming completion, run every applicable check:
 - network failure/retry/no-duplicate-order scenarios
 - service-worker/manifest/deep-link tests
 - Android prebuild/build/launch smoke path where environment permits
+- NEW Vercel deployment verification and logs
 
 Fix failures. Do not leave known critical/high security defects as TODOs.
 
 ## External blockers
-If a real Supabase project credential, Expo/FCM configuration, signing credential or deployment account setting is unavailable:
-- finish everything that can be implemented/tested locally;
-- provide exact setup steps and env names;
+If a provider OAuth consent screen, Expo/FCM configuration, signing credential or another account-level approval cannot be completed by the agent itself:
+- finish everything else that can be implemented/tested;
+- provide the exact one-time action needed;
 - keep mocks out of production paths;
-- report only the specific external verification that could not be performed.
+- continue after authorization rather than redesigning around the blocker.
 
 ## Final handoff
 Leave a final repository status containing:
@@ -156,8 +172,9 @@ Leave a final repository status containing:
 - migrations/RPC/RLS summary
 - commands actually run
 - tests actually passed/failed
+- Supabase advisor status
 - Android APK build command/path/configuration
-- PWA build/deploy command
+- PWA build/deploy command and final Vercel URL
 - exact external configuration still required
 - confirmation that no required paid service was introduced
 
