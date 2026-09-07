@@ -25,20 +25,18 @@ function loginEmails(phone:string){
 
 async function assertActive(userId:string){
   const {data:profile,error}=await supabase.from('profiles').select('is_active').eq('id',userId).maybeSingle();
-  if(error) throw error;
+  if(error) throw new Error('تعذر التحقق من حالة الحساب حاليًا. حاول مرة أخرى.');
   if(profile?.is_active===false){await supabase.auth.signOut();throw new Error('الحساب موقوف حاليًا. تواصل مع الدعم.');}
 }
 
 export async function signInPhonePassword(phone:string,password:string){
   if(password.length<8) throw new Error('راجع رقم الهاتف وكلمة المرور.');
   const emails=loginEmails(phone);
-  let lastError:Error|undefined;
   for(const email of emails){
     const {data,error}=await supabase.auth.signInWithPassword({email,password});
     if(!error&&data.user){await assertActive(data.user.id);return data;}
-    lastError=error??undefined;
   }
-  throw new Error(lastError?.message||'رقم الهاتف أو كلمة المرور غير صحيحة.');
+  throw new Error('رقم الهاتف أو كلمة المرور غير صحيحة.');
 }
 
 export async function signUpPhonePassword(input:{name:string;phone:string;password:string;kind:RegistrationKind}){
