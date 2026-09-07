@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveLandingRoute } from '../src/lib/landing';
+import { resolveLandingRoute } from '../src/lib/landingRules';
 
 describe('role-aware landing route', () => {
   it('keeps pending merchant and driver accounts out of operational dashboards', () => {
