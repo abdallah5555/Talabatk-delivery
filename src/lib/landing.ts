@@ -3,6 +3,20 @@ import { supabase } from './supabase';
 
 export type LandingRoute = '/admin' | '/role/merchant' | '/role/driver' | '/pending-approval' | '/onboarding' | '/home';
 export type PendingApproval = { merchant: boolean; driver: boolean };
+export type RegistrationKind = 'customer' | 'merchant' | 'driver' | null;
+
+export function resolveLandingRoute(
+  roles: string[],
+  pending: PendingApproval,
+  kind: RegistrationKind,
+): LandingRoute {
+  if (roles.includes('admin')) return '/admin';
+  if (roles.includes('merchant')) return '/role/merchant';
+  if (roles.includes('driver')) return '/role/driver';
+  if (pending.merchant || pending.driver) return '/pending-approval';
+  if (kind === 'merchant' || kind === 'driver') return '/onboarding';
+  return '/home';
+}
 
 export async function getPendingApprovals(): Promise<PendingApproval> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -16,21 +30,16 @@ export async function getPendingApprovals(): Promise<PendingApproval> {
   return { merchant: Boolean(merchant.data?.length), driver: Boolean(driver.data?.length) };
 }
 
-export async function getRegistrationKind(): Promise<'customer'|'merchant'|'driver'|null> {
+export async function getRegistrationKind(): Promise<RegistrationKind> {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error) throw error;
-  const value=user?.user_metadata?.registration_kind;
-  return value==='customer'||value==='merchant'||value==='driver'?value:null;
+  const value = user?.user_metadata?.registration_kind;
+  return value === 'customer' || value === 'merchant' || value === 'driver' ? value : null;
 }
 
 export async function getLandingRoute(): Promise<LandingRoute> {
   const roles = await getMyRoles();
-  if (roles.includes('admin')) return '/admin';
-  if (roles.includes('merchant')) return '/role/merchant';
-  if (roles.includes('driver')) return '/role/driver';
   const pending = await getPendingApprovals();
-  if (pending.merchant || pending.driver) return '/pending-approval';
-  const kind=await getRegistrationKind();
-  if(kind==='merchant'||kind==='driver') return '/onboarding';
-  return '/home';
+  const kind = await getRegistrationKind();
+  return resolveLandingRoute(roles, pending, kind);
 }
