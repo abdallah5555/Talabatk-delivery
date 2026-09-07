@@ -1,5 +1,11 @@
 import { supabase } from './supabase';
 
+export async function setStoreOpen(storeId:string,isOpen:boolean){
+  const {data,error}=await supabase.from('stores').update({is_open:isOpen,updated_at:new Date().toISOString()}).eq('id',storeId).select('id,is_open').single();
+  if(error)throw error;
+  return data;
+}
+
 export async function getMerchantMenu(storeId: string) {
   const { data, error } = await supabase
     .from('menu_items')
