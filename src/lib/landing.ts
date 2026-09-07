@@ -28,10 +28,8 @@ export async function getLandingRoute(): Promise<LandingRoute> {
   if (roles.includes('admin')) return '/admin';
   if (roles.includes('merchant')) return '/role/merchant';
   if (roles.includes('driver')) return '/role/driver';
-
   const pending = await getPendingApprovals();
   if (pending.merchant || pending.driver) return '/pending-approval';
-
   const kind=await getRegistrationKind();
   if(kind==='merchant'||kind==='driver') return '/onboarding';
   return '/home';
