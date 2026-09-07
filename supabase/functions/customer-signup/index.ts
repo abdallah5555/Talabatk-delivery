@@ -1,67 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.115.0";
-
-const corsHeaders={
-  "Access-Control-Allow-Origin":"*",
-  "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods":"POST, OPTIONS",
-  "Content-Type":"application/json",
-};
+const corsHeaders={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:corsHeaders});
-
-function normalizePhone(value:string){
-  const raw=value.replace(/[\s()-]/g,"");
-  if(/^\+20(10|11|12|15)\d{8}$/.test(raw)) return raw;
-  if(/^0020(10|11|12|15)\d{8}$/.test(raw)) return `+${raw.slice(2)}`;
-  if(/^0(10|11|12|15)\d{8}$/.test(raw)) return `+20${raw.slice(1)}`;
-  if(/^(10|11|12|15)\d{8}$/.test(raw)) return `+20${raw}`;
-  throw new Error("invalid_phone");
-}
+type RegistrationKind="customer"|"merchant"|"driver";
+function normalizePhone(value:string){const raw=value.replace(/[\s()-]/g,"");if(/^\+20(10|11|12|15)\d{8}$/.test(raw))return raw;if(/^0020(10|11|12|15)\d{8}$/.test(raw))return `+${raw.slice(2)}`;if(/^0(10|11|12|15)\d{8}$/.test(raw))return `+20${raw.slice(1)}`;if(/^(10|11|12|15)\d{8}$/.test(raw))return `+20${raw}`;throw new Error("invalid_phone");}
 function localPhone(e164:string){return `0${e164.slice(3)}`;}
 function internalEmail(e164:string){return `u_${e164.slice(1)}@talabak.internal.net`;}
-async function sha256(value:string){
-  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,"0")).join("");
-}
-
-Deno.serve(async(req:Request)=>{
-  if(req.method==="OPTIONS") return new Response("ok",{headers:corsHeaders});
-  if(req.method!=="POST") return json({error:"METHOD_NOT_ALLOWED"},405);
-  try{
-    const body=await req.json().catch(()=>({}));
-    const name=String(body?.name??"").trim();
-    const password=String(body?.password??"");
-    let phone:string;
-    try{phone=normalizePhone(String(body?.phone??""));}catch{return json({error:"INVALID_PHONE"},400);}
-    if(name.length<2||name.length>80) return json({error:"INVALID_NAME"},400);
-    if(password.length<8||password.length>72) return json({error:"INVALID_PASSWORD"},400);
-
-    const url=Deno.env.get("SUPABASE_URL")??"";
-    const serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")??"";
-    if(!url||!serviceKey) return json({error:"SERVER_CONFIGURATION"},500);
-    const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
-
-    const ip=req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()||req.headers.get("cf-connecting-ip")||"unknown";
-    const keyHash=await sha256(`${ip}|${phone}`);
-    const {data:allowed,error:rateError}=await admin.rpc("consume_signup_rate_limit",{p_key_hash:keyHash});
-    if(rateError){console.error("signup rate limit",rateError.message);return json({error:"RATE_LIMIT_UNAVAILABLE"},500);}
-    if(!allowed) return json({error:"TOO_MANY_ATTEMPTS"},429);
-
-    const {data:existing,error:lookupError}=await admin.from("profiles").select("id").in("phone",[phone,localPhone(phone)]).limit(1).maybeSingle();
-    if(lookupError){console.error("signup lookup",lookupError.message);return json({error:"LOOKUP_FAILED"},500);}
-    if(existing?.id) return json({error:"ACCOUNT_EXISTS"},409);
-
-    const {data:created,error:createError}=await admin.auth.admin.createUser({
-      email:internalEmail(phone),password,email_confirm:true,user_metadata:{full_name:name,phone},
-    });
-    if(createError||!created.user){
-      const message=createError?.message??"";
-      if(/already|registered|duplicate/i.test(message)) return json({error:"ACCOUNT_EXISTS"},409);
-      console.error("signup create user",message);return json({error:"SIGNUP_FAILED"},400);
-    }
-    const {error:profileError}=await admin.from("profiles").update({full_name:name,phone,is_active:true,updated_at:new Date().toISOString()}).eq("id",created.user.id);
-    if(profileError){console.error("signup profile",profileError.message);await admin.auth.admin.deleteUser(created.user.id);return json({error:"PROFILE_FAILED"},500);}
-    await admin.from("user_roles").upsert({user_id:created.user.id,role:"customer"},{onConflict:"user_id,role"});
-    return json({success:true},201);
-  }catch(error){console.error("customer-signup unexpected",error instanceof Error?error.message:String(error));return json({error:"UNEXPECTED"},500);}
-});
+function registrationKind(value:unknown):RegistrationKind|null{return value==="customer"||value==="merchant"||value==="driver"?value:null;}
+async function sha256(value:string){const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,"0")).join("");}
+Deno.serve(async(req:Request)=>{if(req.method==="OPTIONS")return new Response("ok",{headers:corsHeaders});if(req.method!=="POST")return json({error:"METHOD_NOT_ALLOWED"},405);try{const body=await req.json().catch(()=>({}));const name=String(body?.name??"").trim();const password=String(body?.password??"");const kind=registrationKind(body?.kind);let phone:string;try{phone=normalizePhone(String(body?.phone??""));}catch{return json({error:"INVALID_PHONE"},400);}if(name.length<2||name.length>80)return json({error:"INVALID_NAME"},400);if(password.length<8||password.length>72)return json({error:"INVALID_PASSWORD"},400);if(!kind)return json({error:"INVALID_ACCOUNT_KIND"},400);const url=Deno.env.get("SUPABASE_URL")??"";const serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")??"";if(!url||!serviceKey)return json({error:"SERVER_CONFIGURATION"},500);const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});const ip=req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()||req.headers.get("cf-connecting-ip")||"unknown";const keyHash=await sha256(`${ip}|${phone}`);const {data:allowed,error:rateError}=await admin.rpc("consume_signup_rate_limit",{p_key_hash:keyHash});if(rateError){console.error("signup rate limit",rateError.message);return json({error:"RATE_LIMIT_UNAVAILABLE"},500);}if(!allowed)return json({error:"TOO_MANY_ATTEMPTS"},429);const {data:existing,error:lookupError}=await admin.from("profiles").select("id").in("phone",[phone,localPhone(phone)]).limit(1).maybeSingle();if(lookupError){console.error("signup lookup",lookupError.message);return json({error:"LOOKUP_FAILED"},500);}if(existing?.id)return json({error:"ACCOUNT_EXISTS"},409);const {data:created,error:createError}=await admin.auth.admin.createUser({email:internalEmail(phone),password,email_confirm:true,user_metadata:{full_name:name,phone,registration_kind:kind}});if(createError||!created.user){const message=createError?.message??"";if(/already|registered|duplicate/i.test(message))return json({error:"ACCOUNT_EXISTS"},409);console.error("signup create user",message);return json({error:"SIGNUP_FAILED"},400);}const {error:profileError}=await admin.from("profiles").update({full_name:name,phone,is_active:true,updated_at:new Date().toISOString()}).eq("id",created.user.id);if(profileError){console.error("signup profile",profileError.message);await admin.auth.admin.deleteUser(created.user.id);return json({error:"PROFILE_FAILED"},500);}if(kind==="customer"){const {error:roleError}=await admin.from("user_roles").upsert({user_id:created.user.id,role:"customer"},{onConflict:"user_id,role"});if(roleError){console.error("signup customer role",roleError.message);await admin.auth.admin.deleteUser(created.user.id);return json({error:"ROLE_FAILED"},500);}}return json({success:true,kind,requires_admin_approval:kind!=="customer"},201);}catch(error){console.error("customer-signup unexpected",error instanceof Error?error.message:String(error));return json({error:"UNEXPECTED"},500);}});
