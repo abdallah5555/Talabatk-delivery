@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Text, View } from 'react-native';
-import { Button, Card, Field, Muted, Screen, Title } from '@/src/components/ui';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button, Card, Field, Muted, colors } from '@/src/components/ui';
 // Metro resolves the platform-specific DriverMap.native.tsx / DriverMap.web.tsx pair.
 // eslint-disable-next-line import/no-unresolved
 import { DriverMap } from '@/src/components/DriverMap';
@@ -11,109 +11,45 @@ import { cancelMyOrder, getMyDriverReview, getMyReview, getReorderLines, submitD
 import { getDriverLocationForOrder, subscribeToDriverLocation } from '@/src/lib/tracking';
 import { useCart } from '@/src/state/cart';
 
-const labels: Record<string, string> = { pending: 'بانتظار التاجر', accepted: 'تم قبول الطلب', preparing: 'جاري التحضير', ready: 'جاهز للاستلام', assigned: 'تم تعيين مندوب', picked_up: 'استلم المندوب الطلب', on_the_way: 'المندوب في الطريق', delivered: 'تم التسليم', cancelled: 'تم الإلغاء', rejected: 'تم رفض الطلب' };
-const liveStatuses = new Set(['assigned','picked_up','on_the_way']);
+const labels:Record<string,string>={pending:'بانتظار التاجر',accepted:'تم قبول الطلب',preparing:'جاري التحضير',ready:'جاهز للاستلام',assigned:'تم تعيين مندوب',picked_up:'استلم المندوب الطلب',on_the_way:'المندوب في الطريق',delivered:'تم التسليم',cancelled:'تم الإلغاء',rejected:'تم رفض الطلب'};
+const progressStatuses=['pending','accepted','preparing','ready','assigned','picked_up','on_the_way','delivered'];
+const liveStatuses=new Set(['assigned','picked_up','on_the_way']);
 
-export default function OrderTracking() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const qc = useQueryClient();
-  const cart = useCart();
-  const [storeRating, setStoreRating] = useState(5);
-  const [storeComment, setStoreComment] = useState('');
-  const [driverRating, setDriverRating] = useState(5);
-  const [driverComment, setDriverComment] = useState('');
-  const [submittingStore, setSubmittingStore] = useState(false);
-  const [submittingDriver, setSubmittingDriver] = useState(false);
-  const [reordering, setReordering] = useState(false);
-  const [cancelling,setCancelling]=useState(false);
-  const order = useQuery({ queryKey: ['order', id], queryFn: () => getMyOrder(id!), enabled: Boolean(id) });
-  const timeline = useQuery({ queryKey: ['order-timeline', id], queryFn: () => getOrderTimeline(id!), enabled: Boolean(id) });
-  const liveTracking = Boolean(order.data && liveStatuses.has(order.data.status));
-  const driverLocation = useQuery({ queryKey: ['driver-location', id], queryFn: () => getDriverLocationForOrder(id!), enabled: Boolean(id) && liveTracking, refetchInterval: 30_000 });
-  const review = useQuery({ queryKey: ['order-review', id], queryFn: () => getMyReview(id!), enabled: Boolean(id) && order.data?.status === 'delivered' });
+export default function OrderTracking(){
+  const {id}=useLocalSearchParams<{id:string}>();const qc=useQueryClient();const cart=useCart();
+  const[storeRating,setStoreRating]=useState(5);const[storeComment,setStoreComment]=useState('');const[driverRating,setDriverRating]=useState(5);const[driverComment,setDriverComment]=useState('');const[submittingStore,setSubmittingStore]=useState(false);const[submittingDriver,setSubmittingDriver]=useState(false);const[reordering,setReordering]=useState(false);const[cancelling,setCancelling]=useState(false);
+  const order=useQuery({queryKey:['order',id],queryFn:()=>getMyOrder(id!),enabled:Boolean(id)});
+  const timeline=useQuery({queryKey:['order-timeline',id],queryFn:()=>getOrderTimeline(id!),enabled:Boolean(id)});
+  const liveTracking=Boolean(order.data&&liveStatuses.has(order.data.status));
+  const driverLocation=useQuery({queryKey:['driver-location',id],queryFn:()=>getDriverLocationForOrder(id!),enabled:Boolean(id)&&liveTracking,refetchInterval:30_000});
+  const review=useQuery({queryKey:['order-review',id],queryFn:()=>getMyReview(id!),enabled:Boolean(id)&&order.data?.status==='delivered'});
   const driverReview=useQuery({queryKey:['driver-review',id],queryFn:()=>getMyDriverReview(id!),enabled:Boolean(id)&&order.data?.status==='delivered'&&Boolean(order.data?.driver_id)});
-
-  useEffect(() => {
-    if (!id) return;
-    return subscribeToOrder(id, () => {
-      void qc.invalidateQueries({ queryKey: ['order', id] });
-      void qc.invalidateQueries({ queryKey: ['order-timeline', id] });
-      void qc.invalidateQueries({ queryKey: ['my-orders'] });
-    });
-  }, [id, qc]);
-
-  useEffect(() => {
-    const driverId = order.data?.driver_id;
-    if (!id || !driverId || !liveTracking) return;
-    return subscribeToDriverLocation(driverId, (location) => qc.setQueryData(['driver-location', id], location));
-  }, [id, liveTracking, order.data?.driver_id, qc]);
-
-  async function sendStoreReview() {
-    if (!id || submittingStore) return;
-    setSubmittingStore(true);
-    try { await submitStoreReview(id, storeRating, storeComment); await qc.invalidateQueries({ queryKey: ['order-review', id] }); await qc.invalidateQueries({ queryKey: ['stores'] }); Alert.alert('شكرًا ليك', 'تم تسجيل تقييم المتجر.'); }
-    catch (e) { Alert.alert('تعذر تسجيل التقييم', e instanceof Error ? e.message : 'حاول مرة تانية'); }
-    finally { setSubmittingStore(false); }
-  }
-
-  async function sendDriverReview(){
-    if(!id||submittingDriver)return;
-    setSubmittingDriver(true);
-    try{await submitDriverReview(id,driverRating,driverComment);await qc.invalidateQueries({queryKey:['driver-review',id]});Alert.alert('شكرًا ليك','تم تسجيل تقييم المندوب.');}
-    catch(e){Alert.alert('تعذر تسجيل تقييم المندوب',e instanceof Error?e.message:'حاول مرة تانية');}
-    finally{setSubmittingDriver(false);}
-  }
-
-  async function cancelOrder(){
-    if(!id||cancelling)return;
-    setCancelling(true);
-    try{await cancelMyOrder(id);await Promise.all([qc.invalidateQueries({queryKey:['order',id]}),qc.invalidateQueries({queryKey:['order-timeline',id]}),qc.invalidateQueries({queryKey:['my-orders']})]);Alert.alert('تم إلغاء الطلب','تم تحديث حالة طلبك.');}
-    catch(e){Alert.alert('تعذر إلغاء الطلب',e instanceof Error?e.message:'الطلب لم يعد قابلًا للإلغاء.');}
-    finally{setCancelling(false);}
-  }
-
-  async function reorder() {
-    if (!id || reordering) return;
-    setReordering(true);
-    try {
-      const lines = await getReorderLines(id);
-      if (!lines.length) { Alert.alert('الطلب غير متاح', 'المنتجات القديمة غير متاحة حاليًا.'); return; }
-      cart.clear();
-      for (const line of lines) for (let n = 0; n < line.quantity; n += 1) cart.add(line.item);
-      router.push('/checkout');
-    } catch (e) { Alert.alert('تعذر إعادة الطلب', e instanceof Error ? e.message : 'حاول مرة تانية'); }
-    finally { setReordering(false); }
-  }
-
+  useEffect(()=>{if(!id)return;return subscribeToOrder(id,()=>{void qc.invalidateQueries({queryKey:['order',id]});void qc.invalidateQueries({queryKey:['order-timeline',id]});void qc.invalidateQueries({queryKey:['my-orders']});});},[id,qc]);
+  useEffect(()=>{const driverId=order.data?.driver_id;if(!id||!driverId||!liveTracking)return;return subscribeToDriverLocation(driverId,location=>qc.setQueryData(['driver-location',id],location));},[id,liveTracking,order.data?.driver_id,qc]);
+  const progress=useMemo(()=>Math.max(0,progressStatuses.indexOf(order.data?.status??'')),[order.data?.status]);
+  async function sendStoreReview(){if(!id||submittingStore)return;setSubmittingStore(true);try{await submitStoreReview(id,storeRating,storeComment);await qc.invalidateQueries({queryKey:['order-review',id]});await qc.invalidateQueries({queryKey:['stores']});Alert.alert('شكرًا ليك','تم تسجيل تقييم المتجر.');}catch(e){Alert.alert('تعذر تسجيل التقييم',e instanceof Error?e.message:'حاول مرة تانية');}finally{setSubmittingStore(false);}}
+  async function sendDriverReview(){if(!id||submittingDriver)return;setSubmittingDriver(true);try{await submitDriverReview(id,driverRating,driverComment);await qc.invalidateQueries({queryKey:['driver-review',id]});Alert.alert('شكرًا ليك','تم تسجيل تقييم المندوب.');}catch(e){Alert.alert('تعذر تسجيل تقييم المندوب',e instanceof Error?e.message:'حاول مرة تانية');}finally{setSubmittingDriver(false);}}
+  async function cancelOrder(){if(!id||cancelling)return;setCancelling(true);try{await cancelMyOrder(id);await Promise.all([qc.invalidateQueries({queryKey:['order',id]}),qc.invalidateQueries({queryKey:['order-timeline',id]}),qc.invalidateQueries({queryKey:['my-orders']})]);Alert.alert('تم إلغاء الطلب','تم تحديث حالة طلبك.');}catch(e){Alert.alert('تعذر إلغاء الطلب',e instanceof Error?e.message:'الطلب لم يعد قابلًا للإلغاء.');}finally{setCancelling(false);}}
+  async function reorder(){if(!id||reordering)return;setReordering(true);try{const lines=await getReorderLines(id);if(!lines.length){Alert.alert('الطلب غير متاح','المنتجات القديمة غير متاحة حاليًا.');return;}cart.clear();for(const line of lines)for(let n=0;n<line.quantity;n+=1)cart.add(line.item);router.push('/checkout');}catch(e){Alert.alert('تعذر إعادة الطلب',e instanceof Error?e.message:'حاول مرة تانية');}finally{setReordering(false);}}
   const canCancel=order.data?.status==='pending'||order.data?.status==='accepted';
+  if(order.isLoading)return <View style={s.center}><Muted>جاري تحميل تفاصيل الطلب…</Muted></View>;
+  if(order.isError||!order.data)return <View style={s.center}><Text style={s.errorTitle}>تعذر تحميل الطلب</Text><Muted>حاول ترجع لقائمة الطلبات وتفتح الطلب مرة تانية.</Muted></View>;
+  const current=order.data;
+  const terminal=['cancelled','rejected'].includes(current.status);
+  return <ScrollView style={s.page} contentContainerStyle={s.content}>
+    <View style={[s.hero,terminal&&s.heroTerminal,current.status==='delivered'&&s.heroDone]}><Pressable accessibilityRole="button" onPress={()=>router.back()} style={s.back}><Text style={s.backText}>‹</Text></Pressable><Text style={s.kicker}>طلب #{current.id.slice(0,8)}</Text><Text style={s.heroTitle}>{labels[current.status]??current.status}</Text><Text style={s.heroSub}>{current.status==='on_the_way'?'المندوب اتحرك ناحيتك — تابع موقعه على الخريطة.':current.status==='delivered'?'نتمنى تكون التجربة عجبتك. تقدر تعيد الطلب أو تقيّم الخدمة.':terminal?'الطلب توقف. التفاصيل محفوظة في سجل الطلب.':'الحالة بتتحدث تلقائيًا أول ما يحصل أي تغيير.'}</Text><View style={s.heroBottom}><Text style={s.heroPrice}>{current.total.toFixed(2)} ج</Text><Text style={s.live}>{liveTracking?'● تتبع مباشر':'● تحديث تلقائي'}</Text></View></View>
 
-  return <Screen>
-    <Title>تتبع الطلب</Title>
-    {order.isLoading ? <Muted>جاري تحميل الطلب...</Muted> : order.isError ? <Muted>تعذر تحميل الطلب. حاول مرة تانية.</Muted> : order.data ? <>
-      <Card>
-        <Text style={{ fontWeight: '900', textAlign: 'right', fontSize: 18 }}>{labels[order.data.status] ?? order.data.status}</Text>
-        <Muted>طلب #{order.data.id.slice(0, 8)}</Muted>
-        <Text style={{ fontWeight: '800', textAlign: 'right' }}>{order.data.total.toFixed(2)} ج</Text>
-        <Muted>{order.data.delivery_address}</Muted>
-        {canCancel?<Button title={cancelling?'جاري الإلغاء…':'إلغاء الطلب'} disabled={cancelling} onPress={()=>Alert.alert('إلغاء الطلب','متأكد إنك عايز تلغي الطلب؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء الطلب',style:'destructive',onPress:()=>void cancelOrder()}])}/>:null}
-      </Card>
-      {liveTracking ? <>
-        <Title>موقع المندوب</Title>
-        {driverLocation.data ? <><DriverMap latitude={driverLocation.data.latitude} longitude={driverLocation.data.longitude} /><Muted>آخر تحديث للموقع: {new Date(driverLocation.data.updated_at).toLocaleTimeString('ar-EG')}. الموقع يتحدث لحظيًا أثناء تشغيل GPS عند المندوب.</Muted></> : <Card><Muted>{driverLocation.isLoading ? 'جاري تحديد موقع المندوب…' : 'لسه مفيش موقع متاح للمندوب.'}</Muted></Card>}
-      </> : null}
-      <Title>خط سير الطلب</Title>
-      <View style={{ gap: 8 }}>{(timeline.data ?? []).map((event) => <Card key={event.id}><Text style={{ fontWeight: '800', textAlign: 'right' }}>{labels[event.status] ?? event.status}</Text><Muted>{new Date(event.created_at).toLocaleString('ar-EG')}</Muted></Card>)}</View>
-      <Muted>الحالة بتتحدث تلقائيًا عند أي تغيير.</Muted>
-      {order.data.status === 'delivered' ? <>
-        <Button title={reordering ? 'جاري تجهيز السلة…' : 'اطلب نفس الطلب مرة تانية'} disabled={reordering} onPress={reorder} />
-        <Title>قيّم المتجر</Title>
-        {review.data ? <Card><Text style={{ textAlign: 'right', fontWeight: '900' }}>{'★'.repeat(review.data.rating)}{'☆'.repeat(5-review.data.rating)}</Text><Muted>{review.data.comment || 'بدون تعليق'}</Muted></Card> : <RatingCard rating={storeRating} setRating={setStoreRating} comment={storeComment} setComment={setStoreComment} busy={submittingStore} title="إرسال تقييم المتجر" onSubmit={sendStoreReview}/>} 
-        {order.data.driver_id?<><Title>قيّم المندوب</Title>{driverReview.data?<Card><Text style={{textAlign:'right',fontWeight:'900'}}>{'★'.repeat(driverReview.data.rating)}{'☆'.repeat(5-driverReview.data.rating)}</Text><Muted>{driverReview.data.comment||'بدون تعليق'}</Muted></Card>:<RatingCard rating={driverRating} setRating={setDriverRating} comment={driverComment} setComment={setDriverComment} busy={submittingDriver} title="إرسال تقييم المندوب" onSubmit={sendDriverReview}/>}</>:null}
-      </> : null}
-    </> : null}
-  </Screen>;
-}
+    {!terminal?<Card><Text style={s.sectionTitle}>رحلة الطلب</Text><View style={s.progressRow}>{progressStatuses.map((status,index)=><View key={status} style={s.progressItem}><View style={[s.progressDot,index<=progress&&s.progressDotDone]}>{index<progress?<Text style={s.check}>✓</Text>:null}</View>{index<progressStatuses.length-1?<View style={[s.progressLine,index<progress&&s.progressLineDone]}/>:null}</View>)}</View><View style={s.progressLabels}><Text style={s.progressLabel}>تأكيد</Text><Text style={s.progressLabel}>تحضير</Text><Text style={s.progressLabel}>توصيل</Text><Text style={s.progressLabel}>وصل</Text></View></Card>:null}
 
-function RatingCard({rating,setRating,comment,setComment,busy,title,onSubmit}:{rating:number;setRating:(n:number)=>void;comment:string;setComment:(v:string)=>void;busy:boolean;title:string;onSubmit:()=>void}){
-  return <Card><View style={{ flexDirection: 'row-reverse', gap: 8, justifyContent: 'center' }}>{[1,2,3,4,5].map((n) => <Text key={n} accessibilityRole="button" accessibilityLabel={`${n} نجوم`} onPress={() => setRating(n)} style={{ fontSize: 32 }}>{n <= rating ? '★' : '☆'}</Text>)}</View><Field value={comment} onChangeText={setComment} placeholder="اكتب رأيك اختياريًا" multiline maxLength={1000} /><Button title={busy?'جاري الإرسال…':title} disabled={busy} onPress={onSubmit}/></Card>;
+    <Card><View style={s.infoRow}><Text style={s.infoIcon}>📍</Text><View style={s.flex}><Text style={s.infoTitle}>عنوان التوصيل</Text><Text style={s.infoText}>{current.delivery_address}</Text></View></View>{canCancel?<Pressable accessibilityRole="button" onPress={()=>Alert.alert('إلغاء الطلب','متأكد إنك عايز تلغي الطلب؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء الطلب',style:'destructive',onPress:()=>void cancelOrder()}])} style={s.cancel}><Text style={s.cancelText}>{cancelling?'جاري الإلغاء…':'إلغاء الطلب'}</Text></Pressable>:null}</Card>
+
+    {liveTracking?<><Text style={s.sectionTitle}>المندوب على الخريطة</Text>{driverLocation.data?<View style={s.mapCard}><DriverMap latitude={driverLocation.data.latitude} longitude={driverLocation.data.longitude}/><View style={s.mapFooter}><Text style={s.mapLive}>● LIVE</Text><Text style={s.mapTime}>آخر تحديث {new Date(driverLocation.data.updated_at).toLocaleTimeString('ar-EG')}</Text></View></View>:<Card><Muted>{driverLocation.isLoading?'جاري تحديد موقع المندوب…':'لسه مفيش موقع متاح للمندوب.'}</Muted></Card>}</>:null}
+
+    <Text style={s.sectionTitle}>سجل الحالة</Text><View style={s.timeline}>{(timeline.data??[]).map((event,index)=><View key={event.id} style={s.timelineItem}><View style={s.timelineRail}><View style={s.timelineDot}/>{index<(timeline.data??[]).length-1?<View style={s.timelineLine}/>:null}</View><View style={s.timelineBody}><Text style={s.timelineTitle}>{labels[event.status]??event.status}</Text><Text style={s.timelineTime}>{new Date(event.created_at).toLocaleString('ar-EG')}</Text></View></View>)}</View>
+
+    {current.status==='delivered'?<><Button title={reordering?'جاري تجهيز السلة…':'اطلب نفس الطلب مرة تانية'} disabled={reordering} onPress={reorder}/><Text style={s.sectionTitle}>تقييم التجربة</Text><Text style={s.subsection}>المتجر</Text>{review.data?<ReviewResult rating={review.data.rating} comment={review.data.comment}/>:<RatingCard rating={storeRating} setRating={setStoreRating} comment={storeComment} setComment={setStoreComment} busy={submittingStore} title="إرسال تقييم المتجر" onSubmit={sendStoreReview}/>} {current.driver_id?<><Text style={s.subsection}>المندوب</Text>{driverReview.data?<ReviewResult rating={driverReview.data.rating} comment={driverReview.data.comment}/>:<RatingCard rating={driverRating} setRating={setDriverRating} comment={driverComment} setComment={setDriverComment} busy={submittingDriver} title="إرسال تقييم المندوب" onSubmit={sendDriverReview}/>}</>:null}</>:null}
+  </ScrollView>;
 }
+function ReviewResult({rating,comment}:{rating:number;comment?:string|null}){return <Card><Text style={s.stars}>{'★'.repeat(rating)}{'☆'.repeat(5-rating)}</Text><Muted>{comment||'بدون تعليق'}</Muted></Card>}
+function RatingCard({rating,setRating,comment,setComment,busy,title,onSubmit}:{rating:number;setRating:(n:number)=>void;comment:string;setComment:(v:string)=>void;busy:boolean;title:string;onSubmit:()=>void}){return <Card><View style={s.ratingRow}>{[1,2,3,4,5].map(n=><Text key={n} accessibilityRole="button" accessibilityLabel={`${n} نجوم`} onPress={()=>setRating(n)} style={s.star}>{n<=rating?'★':'☆'}</Text>)}</View><Field value={comment} onChangeText={setComment} placeholder="اكتب رأيك اختياريًا" multiline maxLength={1000}/><Button title={busy?'جاري الإرسال…':title} disabled={busy} onPress={onSubmit}/></Card>}
+const s=StyleSheet.create({page:{flex:1,backgroundColor:'#f5f7fa'},content:{padding:18,paddingBottom:46,gap:13,direction:'rtl'},center:{flex:1,justifyContent:'center',backgroundColor:'#f5f7fa',padding:24,gap:8},errorTitle:{fontSize:22,fontWeight:'900',color:'#101828',textAlign:'right'},hero:{backgroundColor:'#17212f',borderRadius:30,padding:22,paddingTop:60,gap:8,position:'relative'},heroDone:{backgroundColor:'#173b2b'},heroTerminal:{backgroundColor:'#3b2628'},back:{position:'absolute',top:14,left:14,width:40,height:40,borderRadius:20,backgroundColor:'rgba(255,255,255,.1)',alignItems:'center',justifyContent:'center'},backText:{color:'#fff',fontSize:31,lineHeight:34,transform:[{rotate:'180deg'}]},kicker:{color:'#fdba74',fontSize:12,fontWeight:'900',textAlign:'right'},heroTitle:{fontSize:27,fontWeight:'900',color:'#fff',textAlign:'right'},heroSub:{color:'#d0d5dd',fontSize:13,lineHeight:21,textAlign:'right'},heroBottom:{flexDirection:'row-reverse',alignItems:'center',justifyContent:'space-between',marginTop:5},heroPrice:{color:'#fff',fontSize:22,fontWeight:'900'},live:{color:'#86efac',fontSize:10,fontWeight:'900'},sectionTitle:{fontSize:20,fontWeight:'900',color:'#101828',textAlign:'right',marginTop:3},progressRow:{flexDirection:'row-reverse',alignItems:'center',justifyContent:'center',paddingVertical:6},progressItem:{flexDirection:'row-reverse',alignItems:'center',flex:1},progressDot:{width:24,height:24,borderRadius:12,backgroundColor:'#e4e7ec',alignItems:'center',justifyContent:'center'},progressDotDone:{backgroundColor:colors.primary},check:{color:'#fff',fontSize:11,fontWeight:'900'},progressLine:{height:3,flex:1,backgroundColor:'#e4e7ec'},progressLineDone:{backgroundColor:colors.primary},progressLabels:{flexDirection:'row-reverse',justifyContent:'space-between'},progressLabel:{fontSize:9,color:'#667085',fontWeight:'800'},infoRow:{flexDirection:'row-reverse',gap:10,alignItems:'flex-start'},infoIcon:{fontSize:22},flex:{flex:1},infoTitle:{fontWeight:'900',color:'#344054',textAlign:'right'},infoText:{color:'#667085',fontSize:13,lineHeight:20,textAlign:'right',marginTop:3},cancel:{borderWidth:1,borderColor:'#fda29b',backgroundColor:'#fff',borderRadius:14,padding:12,alignItems:'center'},cancelText:{color:'#b42318',fontWeight:'900'},mapCard:{backgroundColor:'#fff',borderRadius:22,overflow:'hidden',borderWidth:1,borderColor:'#eaecf0'},mapFooter:{padding:12,flexDirection:'row-reverse',justifyContent:'space-between',alignItems:'center'},mapLive:{color:'#067647',fontSize:10,fontWeight:'900'},mapTime:{color:'#667085',fontSize:11},timeline:{backgroundColor:'#fff',borderRadius:22,borderWidth:1,borderColor:'#eaecf0',padding:16},timelineItem:{flexDirection:'row-reverse',gap:12,minHeight:60},timelineRail:{width:20,alignItems:'center'},timelineDot:{width:12,height:12,borderRadius:6,backgroundColor:colors.primary,marginTop:4},timelineLine:{width:2,flex:1,backgroundColor:'#fed7aa',marginVertical:4},timelineBody:{flex:1},timelineTitle:{fontWeight:'900',color:'#344054',textAlign:'right'},timelineTime:{fontSize:11,color:'#98a2b3',textAlign:'right',marginTop:3},subsection:{fontSize:15,fontWeight:'900',color:'#475467',textAlign:'right'},ratingRow:{flexDirection:'row-reverse',justifyContent:'center',gap:5},star:{fontSize:34,color:'#f79009'},stars:{fontSize:25,color:'#f79009',fontWeight:'900',textAlign:'right'}});
