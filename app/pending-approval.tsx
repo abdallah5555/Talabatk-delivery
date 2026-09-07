@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Alert, StyleSheet, Text, View } from 'react-native';
-import { Button, Card, Muted, Screen, Title, colors } from '@/src/components/ui';
+import { Button, Card, Muted, Screen, Title } from '@/src/components/ui';
 import { getPendingApprovals, getLandingRoute } from '@/src/lib/landing';
 import { supabase } from '@/src/lib/supabase';
 
