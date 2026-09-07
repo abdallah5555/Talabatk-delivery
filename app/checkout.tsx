@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Card, Field, Muted, Title, colors } from '@/src/components/ui';
+import { Button, Card, Field, Muted, colors } from '@/src/components/ui';
 import { createOrder } from '@/src/lib/api';
 import { getAddresses } from '@/src/lib/features';
 import { useCart } from '@/src/state/cart';
