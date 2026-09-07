@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
 
+export type RegistrationKind='customer'|'merchant'|'driver';
+
 export function normalizeEgyptPhone(value:string){
   const raw=value.replace(/[\s()-]/g,'');
   if(/^\+20(10|11|12|15)\d{8}$/.test(raw)) return raw;
@@ -39,13 +41,13 @@ export async function signInPhonePassword(phone:string,password:string){
   throw new Error(lastError?.message||'رقم الهاتف أو كلمة المرور غير صحيحة.');
 }
 
-export async function signUpPhonePassword(input:{name:string;phone:string;password:string}){
+export async function signUpPhonePassword(input:{name:string;phone:string;password:string;kind:RegistrationKind}){
   const name=input.name.trim();
   const normalized=normalizeEgyptPhone(input.phone);
   if(name.length<2) throw new Error('الاسم مطلوب.');
   if(input.password.length<8||input.password.length>72) throw new Error('كلمة المرور لازم تكون من 8 إلى 72 حرفًا.');
 
-  const {data,error}=await supabase.functions.invoke('customer-signup',{body:{name,phone:normalized,password:input.password}});
+  const {data,error}=await supabase.functions.invoke('customer-signup',{body:{name,phone:normalized,password:input.password,kind:input.kind}});
   if(error){
     const status=(error as any)?.context?.status;
     if(status===409) throw new Error('رقم الهاتف مسجل بالفعل. جرّب تسجيل الدخول.');
