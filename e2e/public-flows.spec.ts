@@ -1,17 +1,21 @@
 import { expect, test } from '@playwright/test';
 
-test('login page is Arabic marketing UI',async({page})=>{
+test('login page is Arabic role-aware marketing UI',async({page})=>{
   await page.goto('/login');
-  await expect(page.getByText('طلباتك أقرب ليك')).toBeVisible();
-  await expect(page.getByText('اطلب بسهولة وتابع طلبك خطوة بخطوة من مكانك.')).toBeVisible();
+  await expect(page.getByText('طلباتك دليفري')).toBeVisible();
+  await expect(page.getByText('كل دور له مكانه')).toBeVisible();
   await expect(page.getByRole('button',{name:/دخول|تسجيل الدخول/})).toBeVisible();
-  await expect(page.locator('body')).not.toContainText(/بدون sms|بدون بريد|حساب واحد يجمع/i);
+  await expect(page.locator('body')).not.toContainText(/بدون sms|بدون بريد|حساب واحد يجمع|supabase|architecture/i);
 });
 
-test('signup route exists and has customer-facing copy',async({page})=>{
+test('signup offers customer merchant and driver with password confirmation',async({page})=>{
   await page.goto('/signup');
-  await expect(page.getByRole('button',{name:/إنشاء|تسجيل/})).toBeVisible();
-  await expect(page.locator('body')).not.toContainText(/supabase|role|sms|architecture/i);
+  await expect(page.getByText('عميل',{exact:true})).toBeVisible();
+  await expect(page.getByText('تاجر',{exact:true})).toBeVisible();
+  await expect(page.getByText('مندوب',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('تأكيد كلمة المرور')).toBeVisible();
+  await expect(page.getByRole('button',{name:/إنشاء/})).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(/supabase|architecture|بدون sms|بدون بريد/i);
 });
 
 test('PWA manifest and service worker are reachable',async({request})=>{
