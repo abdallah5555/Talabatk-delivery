@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import type { MenuItem, Order, Role, Store } from '@/src/types/domain';
 
 export async function getStores(): Promise<Store[]> {
-  const { data, error } = await supabase.from('stores').select('id,owner_id,name,category,description,image_url,address,delivery_fee,is_open,prep_minutes,rating').order('rating', { ascending: false });
+  const { data, error } = await supabase.from('stores').select('id,owner_id,name,category,description,image_url,address,delivery_fee,is_open,prep_minutes,rating').eq('is_open', true).order('rating', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row) => ({ ...row, delivery_fee: Number(row.delivery_fee ?? 0), rating: Number(row.rating ?? 0) })) as Store[];
 }
