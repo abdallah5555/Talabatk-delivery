@@ -1,8 +1,9 @@
 import { supabase } from './supabase';
 
 export async function getAdminOverview(){
-  const [profiles,stores,orders,audit,deletions,issues,settings,areas,metrics,commercial,storeAccess,ads]=await Promise.all([
+  const [profiles,userRoles,stores,orders,audit,deletions,issues,settings,areas,metrics,commercial,storeAccess,ads]=await Promise.all([
     supabase.from('profiles').select('id,full_name,phone,is_active,created_at').order('created_at',{ascending:false}).limit(200),
+    supabase.from('user_roles').select('user_id,role').limit(1000),
     supabase.from('stores').select('id,name,owner_id,category,is_open,rating,created_at').order('created_at',{ascending:false}).limit(200),
     supabase.from('orders').select('id,status,total,customer_id,store_id,driver_id,created_at,updated_at').order('created_at',{ascending:false}).limit(300),
     supabase.from('audit_logs').select('id,actor_id,action,entity_type,entity_id,metadata,created_at').order('created_at',{ascending:false}).limit(100),
@@ -15,8 +16,8 @@ export async function getAdminOverview(){
     supabase.from('store_service_access').select('store_id,merchant_service_enabled,merchant_plan,merchant_monthly_price,merchant_subscription_expires_at,cashier_enabled,cashier_monthly_price,cashier_subscription_expires_at,updated_at'),
     supabase.from('ad_placements').select('id,placement_key,title,description,enabled,provider,platform,media_url,target_url,google_ad_unit_id,priority,starts_at,ends_at,updated_at').order('priority',{ascending:false}),
   ]);
-  for(const q of [profiles,stores,orders,audit,deletions,issues,settings,areas,metrics,commercial,storeAccess,ads]) if(q.error) throw q.error;
-  return {profiles:profiles.data??[],stores:stores.data??[],orders:orders.data??[],audit:audit.data??[],deletions:deletions.data??[],issues:issues.data??[],settings:settings.data??[],areas:areas.data??[],metrics:metrics.data as any,commercial:commercial.data,storeAccess:storeAccess.data??[],ads:ads.data??[]};
+  for(const q of [profiles,userRoles,stores,orders,audit,deletions,issues,settings,areas,metrics,commercial,storeAccess,ads]) if(q.error) throw q.error;
+  return {profiles:profiles.data??[],userRoles:userRoles.data??[],stores:stores.data??[],orders:orders.data??[],audit:audit.data??[],deletions:deletions.data??[],issues:issues.data??[],settings:settings.data??[],areas:areas.data??[],metrics:metrics.data as any,commercial:commercial.data,storeAccess:storeAccess.data??[],ads:ads.data??[]};
 }
 
 export async function setUserActive(userId:string,active:boolean){const {data,error}=await supabase.rpc('admin_set_user_active',{p_user_id:userId,p_active:active});if(error)throw error;return data;}
