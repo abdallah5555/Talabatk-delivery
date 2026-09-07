@@ -28,4 +28,18 @@ describe('production safety gates',()=>{
     expect(liveLines).not.toMatch(/BOT_TOKEN/i);
     expect(liveLines).not.toMatch(/FCM.*PRIVATE|PRIVATE.*FCM/i);
   });
+
+  it('grants the customer role only to customer registrations',()=>{
+    const signup=text('supabase/functions/customer-signup/index.ts');
+    expect(signup).toContain('if(kind==="customer")');
+    expect(signup).toContain('requires_admin_approval:kind!=="customer"');
+    expect(signup).not.toMatch(/role:\"customer\"[^\n]*kind===(?:\"merchant\"|\"driver\")/);
+  });
+
+  it('keeps the auth trigger approval-aware for merchant and driver registrations',()=>{
+    const migration=text('supabase/migrations/202609070020_approval_aware_auth_user_trigger.sql');
+    expect(migration).toContain("if v_registration_kind = 'customer' then");
+    expect(migration).toContain("elsif v_registration_kind not in ('merchant','driver') then");
+    expect(migration).toContain("set search_path = ''");
+  });
 });
