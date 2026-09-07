@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
-import { Button, Card, Muted, Title, colors } from '@/src/components/ui';
+import { Button, Card, Muted, colors } from '@/src/components/ui';
 import { getMyRoles } from '@/src/lib/api';
 import { supabase } from '@/src/lib/supabase';
 import { getOnboardingIdentity } from '@/src/lib/onboarding';
