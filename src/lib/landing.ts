@@ -1,22 +1,9 @@
 import { getMyRoles } from './api';
 import { supabase } from './supabase';
+import { resolveLandingRoute, type LandingRoute, type PendingApproval, type RegistrationKind } from './landingRules';
 
-export type LandingRoute = '/admin' | '/role/merchant' | '/role/driver' | '/pending-approval' | '/onboarding' | '/home';
-export type PendingApproval = { merchant: boolean; driver: boolean };
-export type RegistrationKind = 'customer' | 'merchant' | 'driver' | null;
-
-export function resolveLandingRoute(
-  roles: string[],
-  pending: PendingApproval,
-  kind: RegistrationKind,
-): LandingRoute {
-  if (roles.includes('admin')) return '/admin';
-  if (roles.includes('merchant')) return '/role/merchant';
-  if (roles.includes('driver')) return '/role/driver';
-  if (pending.merchant || pending.driver) return '/pending-approval';
-  if (kind === 'merchant' || kind === 'driver') return '/onboarding';
-  return '/home';
-}
+export { resolveLandingRoute } from './landingRules';
+export type { LandingRoute, PendingApproval, RegistrationKind } from './landingRules';
 
 export async function getPendingApprovals(): Promise<PendingApproval> {
   const { data: { user } } = await supabase.auth.getUser();
