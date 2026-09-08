@@ -4,7 +4,8 @@ test('login page is Arabic role-aware marketing UI',async({page})=>{
   await page.goto('/login');
   await expect(page.getByText('طلباتك دليفري')).toBeVisible();
   await expect(page.getByText('أهلاً برجوعك')).toBeVisible();
-  await expect(page.getByLabel('كلمة المرور')).toBeVisible();
+  await expect(page.getByRole('textbox',{name:'كلمة المرور'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'إظهار كلمة المرور'})).toBeVisible();
   await expect(page.getByRole('button',{name:/دخول|تسجيل الدخول/})).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/بدون sms|بدون بريد|حساب واحد يجمع|supabase|architecture/i);
 });
@@ -14,7 +15,8 @@ test('signup offers customer merchant and driver with password confirmation',asy
   await expect(page.getByText('عميل',{exact:true})).toBeVisible();
   await expect(page.getByText('تاجر',{exact:true})).toBeVisible();
   await expect(page.getByText('مندوب',{exact:true})).toBeVisible();
-  await expect(page.getByLabel('تأكيد كلمة المرور')).toBeVisible();
+  await expect(page.getByRole('textbox',{name:'تأكيد كلمة المرور'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'إظهار كلمة المرور'}).first()).toBeVisible();
   await expect(page.getByRole('button',{name:/إنشاء/})).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/supabase|architecture|بدون sms|بدون بريد/i);
 });
