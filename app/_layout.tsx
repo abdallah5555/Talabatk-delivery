@@ -15,7 +15,11 @@ export default function RootLayout() {
         <StatusBar style="dark" />
         <View style={{ flex: 1 }}>
           <OtaUpdateBanner />
-          <Stack screenOptions={{ headerTitleAlign: 'center', headerBackTitle: 'رجوع' }} />
+          <Stack screenOptions={{ headerTitleAlign: 'center', headerBackTitle: 'رجوع' }}>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Screen name="signup" options={{ headerShown: false }} />
+          </Stack>
         </View>
       </AppGate>
     </AppProviders>
