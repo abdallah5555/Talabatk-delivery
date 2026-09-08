@@ -3,6 +3,7 @@
     "name": "طلباتك دليفري",
     "slug": "talabatk-delivery",
     "version": "0.1.0",
+    "runtimeVersion": { "policy": "appVersion" },
     "orientation": "portrait",
     "scheme": "talabatk",
     "userInterfaceStyle": "automatic",
