@@ -18,6 +18,12 @@
     "scheme": "talabatk",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "icon": "./assets/app-icon.png",
+    "splash": {
+      "image": "./assets/app-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f8f9fa"
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",
@@ -33,7 +39,8 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static"
+      "output": "static",
+      "favicon": "./assets/app-icon.png"
     },
     "experiments": { "typedRoutes": true }
   }
