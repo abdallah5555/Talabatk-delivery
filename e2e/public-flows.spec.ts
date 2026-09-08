@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 test('login page is Arabic role-aware marketing UI',async({page})=>{
   await page.goto('/login');
   await expect(page.getByText('طلباتك دليفري')).toBeVisible();
-  await expect(page.getByText('كل دور له مكانه')).toBeVisible();
+  await expect(page.getByText('أهلاً برجوعك')).toBeVisible();
+  await expect(page.getByLabel('كلمة المرور')).toBeVisible();
   await expect(page.getByRole('button',{name:/دخول|تسجيل الدخول/})).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/بدون sms|بدون بريد|حساب واحد يجمع|supabase|architecture/i);
 });
