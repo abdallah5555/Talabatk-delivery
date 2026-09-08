@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, router } from 'expo-router';
-import { Button, Card, Field, Muted, Title, colors } from '@/src/components/ui';
+import { Button, Card, Field, Muted, PasswordField, Title, colors } from '@/src/components/ui';
 import { signInPhonePassword } from '@/src/lib/auth';
 import { getLandingRoute } from '@/src/lib/landing';
 
@@ -9,10 +9,10 @@ export default function Login() {
   const [phone,setPhone]=useState('');
   const [password,setPassword]=useState('');
   const [busy,setBusy]=useState(false);
-  async function submit(){setBusy(true);try{await signInPhonePassword(phone,password);router.replace(await getLandingRoute());}catch(e){Alert.alert('تعذر تسجيل الدخول',e instanceof Error?e.message:'راجع بياناتك وحاول مرة أخرى');}finally{setBusy(false);}}
+  async function submit(){setBusy(true);try{await signInPhonePassword(phone,password);router.replace(await getLandingRoute());}catch(e){Alert.alert('تعذر تسجيل الدخول',e instanceof Error?e.message:'راجع رقم الموبايل وكلمة المرور وحاول مرة أخرى');}finally{setBusy(false);}}
   return <ScrollView style={s.page} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-    <View style={s.hero}><Text style={s.brand}>طلباتك دليفري</Text><Text style={s.heroTitle}>كل دور له مكانه</Text><Text style={s.heroText}>عميل يطلب، تاجر يدير نشاطه، مندوب يدير ورديته، والإدارة تدخل مباشرة لمركز التحكم.</Text></View>
-    <Card><Title>تسجيل الدخول</Title><Muted>استخدم رقم الموبايل وكلمة المرور الخاصة بحسابك.</Muted><Field accessibilityLabel="رقم الهاتف" keyboardType="phone-pad" placeholder="رقم الموبايل" value={phone} onChangeText={setPhone}/><Field accessibilityLabel="كلمة المرور" placeholder="كلمة المرور" secureTextEntry value={password} onChangeText={setPassword}/><Button title={busy?'جاري الدخول…':'دخول'} onPress={submit} disabled={busy||!phone.trim()||password.length<8}/></Card>
+    <View style={s.hero}><Text style={s.brand}>طلباتك دليفري</Text><Text style={s.heroTitle}>أهلاً برجوعك</Text><Text style={s.heroText}>سجّل دخولك وكمل من المكان المناسب لحسابك مباشرة.</Text></View>
+    <Card><Title>تسجيل الدخول</Title><Muted>استخدم رقم الموبايل وكلمة المرور الخاصة بحسابك.</Muted><Field accessibilityLabel="رقم الهاتف" keyboardType="phone-pad" placeholder="رقم الموبايل" value={phone} onChangeText={setPhone}/><PasswordField accessibilityLabel="كلمة المرور" placeholder="كلمة المرور" value={password} onChangeText={setPassword}/><Button title={busy?'جاري الدخول…':'دخول'} onPress={submit} disabled={busy||!phone.trim()||password.length<8}/></Card>
     <Link href="/signup" style={s.link}>مستخدم جديد؟ أنشئ حسابك</Link>
   </ScrollView>;
 }
