@@ -1,0 +1,40 @@
+name: ota-production
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: Update message shown in Expo history
+        required: true
+        default: Production update
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ota-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: cp .env.example .env
+      - name: Verify Expo authentication secret exists
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN GitHub Actions secret is required to publish OTA updates."
+            exit 1
+          fi
+      - name: Publish Android production OTA update
+        run: npx eas-cli@latest update --channel production --platform android --message "${{ inputs.message }}" --environment production --non-interactive
