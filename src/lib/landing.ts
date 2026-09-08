@@ -5,8 +5,14 @@ import { resolveLandingRoute, type LandingRoute, type PendingApproval, type Regi
 export { resolveLandingRoute } from './landingRules';
 export type { LandingRoute, PendingApproval, RegistrationKind } from './landingRules';
 
+async function getSessionUser() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  return session?.user ?? null;
+}
+
 export async function getPendingApprovals(): Promise<PendingApproval> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) return { merchant: false, driver: false };
   const [merchant, driver] = await Promise.all([
     supabase.from('merchant_applications').select('id').eq('applicant_id', user.id).eq('status', 'pending').limit(1),
@@ -18,8 +24,7 @@ export async function getPendingApprovals(): Promise<PendingApproval> {
 }
 
 export async function getRegistrationKind(): Promise<RegistrationKind> {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error) throw error;
+  const user = await getSessionUser();
   const value = user?.user_metadata?.registration_kind;
   return value === 'customer' || value === 'merchant' || value === 'driver' ? value : null;
 }
@@ -27,8 +32,6 @@ export async function getRegistrationKind(): Promise<RegistrationKind> {
 export async function getLandingRoute(): Promise<LandingRoute> {
   const roles = await getMyRoles();
 
-  // Approved roles always win. A temporary failure while checking pending
-  // applications must never block an already-approved account.
   if (roles.includes('admin')) return '/admin';
   if (roles.includes('merchant')) return '/role/merchant';
   if (roles.includes('driver')) return '/role/driver';
@@ -38,8 +41,6 @@ export async function getLandingRoute(): Promise<LandingRoute> {
     const pending = await getPendingApprovals();
     return resolveLandingRoute(roles, pending, kind);
   } catch {
-    // Fail safely: customers can still use the customer experience, while
-    // merchant/driver registrations remain outside operational dashboards.
     return kind === 'merchant' || kind === 'driver' ? '/onboarding' : '/home';
   }
 }
