@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { Card, Muted, Screen, Title, colors } from './ui';
 import { supabase } from '@/src/lib/supabase';
 
@@ -17,7 +17,7 @@ async function getGateState(){
 
 function LoadingBrand(){
   return <View style={s.loading}>
-    <View style={s.mark}><Text style={s.markText}>ط</Text></View>
+    <View style={s.logoWrap}><Image source={require('../../assets/app-icon.png')} style={s.logo} resizeMode="contain"/></View>
     <Text style={s.brand}>طلباتك دليفري</Text>
     <Text style={s.tagline}>كل اللي محتاجه أقرب ليك</Text>
     <ActivityIndicator size="large" color={colors.primary}/>
@@ -33,9 +33,9 @@ export function AppGate({children}:PropsWithChildren){
 }
 
 const s=StyleSheet.create({
-  loading:{flex:1,backgroundColor:'#fff7ed',alignItems:'center',justifyContent:'center',padding:28,gap:12},
-  mark:{width:92,height:92,borderRadius:28,backgroundColor:colors.primary,alignItems:'center',justifyContent:'center',shadowColor:'#e85d0f',shadowOpacity:.22,shadowRadius:14,shadowOffset:{width:0,height:6},elevation:5},
-  markText:{fontSize:50,fontWeight:'900',color:'#fff'},
+  loading:{flex:1,backgroundColor:'#f8f9fa',alignItems:'center',justifyContent:'center',padding:28,gap:12},
+  logoWrap:{width:150,height:150,borderRadius:38,backgroundColor:'#fff',alignItems:'center',justifyContent:'center',shadowColor:'#101828',shadowOpacity:.08,shadowRadius:18,shadowOffset:{width:0,height:8},elevation:5},
+  logo:{width:132,height:132},
   brand:{fontSize:30,fontWeight:'900',color:colors.dark,textAlign:'center'},
   tagline:{fontSize:15,fontWeight:'700',color:colors.muted,textAlign:'center',marginBottom:12},
   loadingText:{fontSize:13,fontWeight:'700',color:colors.muted,textAlign:'center'},
