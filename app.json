@@ -4,6 +4,16 @@
     "slug": "talabatk-delivery",
     "version": "0.1.0",
     "runtimeVersion": { "policy": "appVersion" },
+    "updates": {
+      "url": "https://u.expo.dev/1a617642-b1c4-4a68-8fa5-98c0ad3c7911",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1a617642-b1c4-4a68-8fa5-98c0ad3c7911"
+      }
+    },
     "orientation": "portrait",
     "scheme": "talabatk",
     "userInterfaceStyle": "automatic",
