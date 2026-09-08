@@ -6,6 +6,7 @@ on:
       - 'app/**'
       - 'src/**'
       - 'public/**'
+      - 'assets/**'
       - 'app.json'
       - 'package.json'
       - 'eas.json'
