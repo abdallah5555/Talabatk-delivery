@@ -26,7 +26,29 @@ export async function getRegistrationKind(): Promise<RegistrationKind> {
 
 export async function getLandingRoute(): Promise<LandingRoute> {
   const roles = await getMyRoles();
-  const pending = await getPendingApprovals();
+
+  // Approved roles always win. Do not block an existing admin/merchant/driver
+  // because a secondary pending-application lookup is temporarily unavailable.
+  if (roles.includes('admin')) return '/admin';
+  if (roles.includes('merchant')) return '/merchant';
+  if (roles.includes('driver')) return '/driver';
+
   const kind = await getRegistrationKind();
-  return resolveLandingRoute(roles, pending, kind);
+  if (kind === 'customer' || kind === null) {
+    try {
+      const pending = await getPendingApprovals();
+      return resolveLandingRoute(roles, pending, kind);
+    } catch {
+      return '/home';
+    }
+  }
+
+  try {
+    const pending = await getPendingApprovals();
+    return resolveLandingRoute(roles, pending, kind);
+  } catch {
+    // A merchant/driver application must never gain operational access on a
+    // failed status check. Keep the user in onboarding instead.
+    return { pathname: '/onboarding', params: { role: kind } } as LandingRoute;
+  }
 }
