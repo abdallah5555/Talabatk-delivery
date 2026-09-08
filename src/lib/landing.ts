@@ -27,28 +27,19 @@ export async function getRegistrationKind(): Promise<RegistrationKind> {
 export async function getLandingRoute(): Promise<LandingRoute> {
   const roles = await getMyRoles();
 
-  // Approved roles always win. Do not block an existing admin/merchant/driver
-  // because a secondary pending-application lookup is temporarily unavailable.
+  // Approved roles always win. A temporary failure while checking pending
+  // applications must never block an already-approved account.
   if (roles.includes('admin')) return '/admin';
-  if (roles.includes('merchant')) return '/merchant';
-  if (roles.includes('driver')) return '/driver';
+  if (roles.includes('merchant')) return '/role/merchant';
+  if (roles.includes('driver')) return '/role/driver';
 
   const kind = await getRegistrationKind();
-  if (kind === 'customer' || kind === null) {
-    try {
-      const pending = await getPendingApprovals();
-      return resolveLandingRoute(roles, pending, kind);
-    } catch {
-      return '/home';
-    }
-  }
-
   try {
     const pending = await getPendingApprovals();
     return resolveLandingRoute(roles, pending, kind);
   } catch {
-    // A merchant/driver application must never gain operational access on a
-    // failed status check. Keep the user in onboarding instead.
-    return { pathname: '/onboarding', params: { role: kind } } as LandingRoute;
+    // Fail safely: customers can still use the customer experience, while
+    // merchant/driver registrations remain outside operational dashboards.
+    return kind === 'merchant' || kind === 'driver' ? '/onboarding' : '/home';
   }
 }
