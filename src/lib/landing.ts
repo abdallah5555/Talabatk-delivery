@@ -30,13 +30,19 @@ export async function getRegistrationKind(): Promise<RegistrationKind> {
 }
 
 export async function getLandingRoute(): Promise<LandingRoute> {
-  const roles = await getMyRoles();
+  const user = await getSessionUser();
+  if (!user) return '/home';
+  const kind = await getRegistrationKind();
 
+  // Customer accounts are active immediately and never depend on approval tables.
+  // This also keeps new customer sign-ins working if approval-table RLS is unavailable.
+  if (kind === 'customer') return '/home';
+
+  const roles = await getMyRoles();
   if (roles.includes('admin')) return '/admin';
   if (roles.includes('merchant')) return '/role/merchant';
   if (roles.includes('driver')) return '/role/driver';
 
-  const kind = await getRegistrationKind();
   try {
     const pending = await getPendingApprovals();
     return resolveLandingRoute(roles, pending, kind);
