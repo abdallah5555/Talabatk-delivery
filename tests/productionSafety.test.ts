@@ -74,4 +74,17 @@ describe('production safety gates',()=>{
     expect(migration).toContain('o.store_id = store_private_contacts.store_id');
     expect(migration).not.toContain('o.store_id = o.store_id');
   });
+
+  it('keeps admin dashboard focused and routes heavy controls to dedicated screens',()=>{
+    const dashboard=text('app/admin/index.tsx');
+    const layout=text('app/admin/_layout.tsx');
+    expect(dashboard).toContain("router.push('/admin/operations')");
+    expect(dashboard).toContain("router.push('/admin/applications')");
+    expect(dashboard).toContain("router.push('/admin/commerce')");
+    expect(dashboard).not.toContain('updateCommercialSettings');
+    expect(dashboard).not.toContain('updateAdPlacement');
+    expect(layout).toContain('طلبات الاعتماد');
+    expect(layout).toContain('التشغيل والمستخدمون');
+    expect(layout).toContain('الاشتراكات والإعلانات');
+  });
 });
