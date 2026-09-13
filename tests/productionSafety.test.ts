@@ -50,6 +50,15 @@ describe('production safety gates',()=>{
     expect(match?.[1]).toMatch(/^[A-Za-z0-9._-]+$/);
   });
 
+  it('supports verified password changes for every signed in account',()=>{
+    const auth=text('src/lib/auth.ts');
+    const security=text('app/security.tsx');
+    expect(auth).toContain('changePassword');
+    expect(auth).toContain('signInWithPassword');
+    expect(auth).toContain('updateUser({password:newPassword})');
+    expect(security).toContain('كلمة المرور الحالية');
+  });
+
   it('clears cached role data when the signed-in account changes',()=>{
     const providers=text('src/providers/AppProviders.tsx');
     expect(providers).toContain('queryClient.clear()');
@@ -73,17 +82,44 @@ describe('production safety gates',()=>{
     const migration=text('supabase/migrations/202609131945_secure_application_submission_rpcs.sql');
     expect(onboarding).toContain("supabase.rpc('submit_merchant_application'");
     expect(onboarding).toContain("supabase.rpc('submit_driver_application'");
-    expect(migration).toContain("security definer");
-    expect(migration).toContain("revoke all on function public.submit_merchant_application");
-    expect(migration).toContain("grant execute on function public.submit_driver_application");
+    expect(migration).toContain('security definer');
+    expect(migration).toContain('revoke all on function public.submit_merchant_application');
+    expect(migration).toContain('grant execute on function public.submit_driver_application');
   });
 
-  it('keeps adhkar reminders selectable from one to fifteen minutes',()=>{
+  it('recovers legacy phone identity used by onboarding',()=>{
+    const onboarding=text('src/lib/onboarding.ts');
+    const migration=text('supabase/migrations/202609132035_fix_profile_phone_and_address_writes.sql');
+    expect(onboarding).toContain('derivePhone');
+    expect(migration).toContain('raw_user_meta_data');
+    expect(migration).toContain('talabak\\.internal\\.net');
+  });
+
+  it('keeps adhkar reminders selectable from one to fifteen minutes and shows full sections',()=>{
     const adhkar=text('src/lib/adhkar.ts');
     const screen=text('app/adhkar.tsx');
     expect(adhkar).toContain('Math.min(15,Math.max(1');
     expect(adhkar).toContain('TIME_INTERVAL');
-    expect(screen).toContain('Array.from({length:15}');
+    expect(screen).toContain('intervalOptions=[1,2,3,4,5,10,15]');
+    expect(adhkar).toContain("title:'أذكار النوم'");
+    expect(adhkar).toContain("title:'أذكار السفر'");
+  });
+
+  it('saves multiple mapped addresses through self-scoped server RPCs',()=>{
+    const addresses=text('app/addresses.tsx');
+    const features=text('src/lib/features.ts');
+    const migration=text('supabase/migrations/202609132035_fix_profile_phone_and_address_writes.sql');
+    expect(addresses).toContain('Map mapStyle={mapStyle}');
+    expect(addresses).toContain("labels=['المنزل','العمل','القهوة','العائلة','أخرى']");
+    expect(features).toContain("supabase.rpc('save_my_address'");
+    expect(migration).toContain('addresses_self_insert');
+  });
+
+  it('keeps customer self writes independent of operational role switches',()=>{
+    const addresses=text('supabase/migrations/202609132035_fix_profile_phone_and_address_writes.sql');
+    const favorites=text('supabase/migrations/202609132050_fix_favorites_self_writes.sql');
+    expect(addresses).not.toContain("has_role('customer'");
+    expect(favorites).not.toContain("has_role('customer'");
   });
 
   it('breaks the orders and driver_status RLS cycle with definer helpers',()=>{
@@ -118,5 +154,12 @@ describe('production safety gates',()=>{
     expect(layout).toContain('<Stack.Screen name="home" options={{ headerShown: false }} />');
     expect(home).toContain('أهلاً، {displayName}');
     expect(home).toContain('assets/app-icon.png');
+  });
+
+  it('uses the branded startup screen instead of generic account loading',()=>{
+    const index=text('app/index.tsx');
+    const config=JSON.parse(text('app.json'));
+    expect(index).toContain('<LoadingBrand/>');
+    expect(config.expo.splash.image).toBe('./assets/app-icon.png');
   });
 });
