@@ -50,6 +50,12 @@ describe('production safety gates',()=>{
     expect(match?.[1]).toMatch(/^[A-Za-z0-9._-]+$/);
   });
 
+  it('clears cached role data when the signed-in account changes',()=>{
+    const providers=text('src/providers/AppProviders.tsx');
+    expect(providers).toContain('queryClient.clear()');
+    expect(providers).toContain('lastUserId.current!==nextId');
+  });
+
   it('keeps required merchant and driver verification documents wired end to end',()=>{
     const onboarding=text('src/lib/onboarding.ts');
     const migration=text('supabase/migrations/202609131650_expand_onboarding_verification_documents.sql');
@@ -60,6 +66,24 @@ describe('production safety gates',()=>{
     expect(onboarding).toContain('commercial_registration_path');
     expect(onboarding).toContain('driving_license_front_path');
     expect(onboarding).toContain('vehicle_license_front_path');
+  });
+
+  it('submits onboarding applications through authenticated server RPCs',()=>{
+    const onboarding=text('src/lib/onboarding.ts');
+    const migration=text('supabase/migrations/202609131945_secure_application_submission_rpcs.sql');
+    expect(onboarding).toContain("supabase.rpc('submit_merchant_application'");
+    expect(onboarding).toContain("supabase.rpc('submit_driver_application'");
+    expect(migration).toContain("security definer");
+    expect(migration).toContain("revoke all on function public.submit_merchant_application");
+    expect(migration).toContain("grant execute on function public.submit_driver_application");
+  });
+
+  it('keeps adhkar reminders selectable from one to fifteen minutes',()=>{
+    const adhkar=text('src/lib/adhkar.ts');
+    const screen=text('app/adhkar.tsx');
+    expect(adhkar).toContain('Math.min(15,Math.max(1');
+    expect(adhkar).toContain('TIME_INTERVAL');
+    expect(screen).toContain('Array.from({length:15}');
   });
 
   it('breaks the orders and driver_status RLS cycle with definer helpers',()=>{
@@ -86,5 +110,13 @@ describe('production safety gates',()=>{
     expect(layout).toContain('طلبات الاعتماد');
     expect(layout).toContain('التشغيل والمستخدمون');
     expect(layout).toContain('الاشتراكات والإعلانات');
+  });
+
+  it('keeps technical route names out of the customer home header',()=>{
+    const layout=text('app/_layout.tsx');
+    const home=text('app/home.tsx');
+    expect(layout).toContain('<Stack.Screen name="home" options={{ headerShown: false }} />');
+    expect(home).toContain('أهلاً، {displayName}');
+    expect(home).toContain('assets/app-icon.png');
   });
 });
