@@ -15,11 +15,20 @@ export default function RootLayout() {
         <StatusBar style="dark" />
         <View style={{ flex: 1 }}>
           <OtaUpdateBanner />
-          <Stack screenOptions={{ headerTitleAlign: 'center', headerBackTitle: 'رجوع' }}>
+          <Stack screenOptions={{ headerTitleAlign: 'center', headerBackTitle: 'رجوع', headerShadowVisible:false }}>
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="signup" options={{ headerShown: false }} />
+            <Stack.Screen name="home" options={{ headerShown: false }} />
             <Stack.Screen name="admin" options={{ headerShown: false }} />
+            <Stack.Screen name="account" options={{ title:'حسابي' }} />
+            <Stack.Screen name="applications" options={{ title:'الانضمام للعمل' }} />
+            <Stack.Screen name="onboarding" options={{ title:'استكمال البيانات' }} />
+            <Stack.Screen name="adhkar" options={{ title:'الأذكار' }} />
+            <Stack.Screen name="orders" options={{ title:'طلباتي' }} />
+            <Stack.Screen name="addresses" options={{ title:'عناويني' }} />
+            <Stack.Screen name="favorites" options={{ title:'المفضلة' }} />
+            <Stack.Screen name="notifications" options={{ title:'الإشعارات' }} />
           </Stack>
         </View>
       </AppGate>
