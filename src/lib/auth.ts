@@ -3,7 +3,7 @@ import { authStorage } from './storage';
 
 export type RegistrationKind='customer'|'merchant'|'driver';
 
-const REAUTH_AT_KEY='talabatk:last-interactive-auth-at';
+const REAUTH_AT_KEY='talabatk_last_interactive_auth_at';
 export const REAUTH_WINDOW_MS=72*60*60*1000;
 
 async function markInteractiveAuth(){
