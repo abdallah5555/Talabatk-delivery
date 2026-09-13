@@ -41,17 +41,10 @@ export function OtaUpdateBanner() {
         setState('idle');
         return;
       }
+      // Never force an in-process native reload here. Some Android devices can
+      // spend too long on the native reload surface. The downloaded update is
+      // safely applied on the next normal cold launch instead.
       setState('ready');
-      await new Promise(resolve => setTimeout(resolve, 450));
-      await Updates.reloadAsync({
-        reloadScreenOptions: {
-          backgroundColor: '#f8f9fa',
-          image: require('../../assets/app-icon.png'),
-          imageResizeMode: 'contain',
-          spinner: { enabled: true, color: '#e8590c', size: 'large' },
-          fade: true,
-        },
-      });
     } catch {
       setState('error');
     }
@@ -59,27 +52,31 @@ export function OtaUpdateBanner() {
 
   if (Platform.OS === 'web' || !Updates.isEnabled || state === 'idle' || state === 'checking') return null;
 
-  const busy = state === 'downloading' || state === 'ready';
+  const downloading = state === 'downloading';
   return (
     <View style={styles.wrap} accessibilityLiveRegion="polite">
       <View style={styles.textWrap}>
-        <Text style={styles.title}>{state === 'error' ? 'تعذر تنزيل التحديث' : busy ? 'جاري تحديث طلباتك' : 'تحديث جديد متاح'}</Text>
+        <Text style={styles.title}>
+          {state === 'error' ? 'تعذر تنزيل التحديث' : state === 'ready' ? 'التحديث جاهز' : downloading ? 'جاري تنزيل التحديث' : 'تحديث جديد متاح'}
+        </Text>
         <Text style={styles.sub}>
           {state === 'error'
             ? 'اتأكد من اتصال الإنترنت وحاول مرة أخرى.'
-            : state === 'downloading'
+            : downloading
               ? `جاري تنزيل التحديث… ${Math.round(progress * 100)}%`
               : state === 'ready'
-                ? 'تم التنزيل. جاري تشغيل النسخة الجديدة بشكل آمن…'
+                ? 'تم تنزيل التحديث بالكامل. كمّل استخدام التطبيق عادي، وهيتطبق تلقائيًا أول مرة تفتح التطبيق بعدها.'
                 : 'نزّل آخر تحسينات طلباتك من غير ما تعيد تثبيت التطبيق.'}
         </Text>
-        {busy ? <View style={styles.track}><View style={[styles.fill,{width:`${Math.round(progress*100)}%`}]} /></View> : null}
+        {downloading ? <View style={styles.track}><View style={[styles.fill,{width:`${Math.round(progress*100)}%`}]} /></View> : null}
       </View>
-      {busy ? (
+      {downloading ? (
         <ActivityIndicator color="#e8590c" />
+      ) : state === 'ready' ? (
+        <Text style={styles.done}>✓</Text>
       ) : (
         <Pressable accessibilityRole="button" onPress={() => void install()} style={styles.button}>
-          <Text style={styles.buttonText}>{state === 'error' ? 'إعادة المحاولة' : 'تحديث الآن'}</Text>
+          <Text style={styles.buttonText}>{state === 'error' ? 'إعادة المحاولة' : 'تنزيل التحديث'}</Text>
         </Pressable>
       )}
     </View>
@@ -106,4 +103,5 @@ const styles = StyleSheet.create({
   fill:{height:'100%',borderRadius:999,backgroundColor:'#e8590c'},
   button: { backgroundColor: '#e8590c', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
   buttonText: { color: '#fff', fontWeight: '900', fontSize: 12 },
+  done:{fontSize:22,fontWeight:'900',color:'#15803d'},
 });
