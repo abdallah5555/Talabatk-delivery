@@ -12,6 +12,13 @@ describe('OTA and reminder regressions',()=>{
     expect(ota).toContain('هيتطبق تلقائيًا أول مرة تفتح التطبيق بعدها');
   });
 
+  it('avoids startup update races in standalone Android builds',()=>{
+    const config=JSON.parse(text('app.json'));
+    expect(config.expo.updates.checkAutomatically).toBe('NEVER');
+    expect(config.expo.updates.requestHeaders?.['expo-channel-name']).toBe('production');
+    expect(config.expo.android.versionCode).toBeGreaterThanOrEqual(10);
+  });
+
   it('keeps adhkar notifications as actual dhikr and migrates old schedules',()=>{
     const adhkar=text('src/lib/adhkar.ts');
     const layout=text('app/_layout.tsx');
