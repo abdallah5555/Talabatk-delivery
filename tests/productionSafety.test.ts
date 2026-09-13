@@ -42,4 +42,23 @@ describe('production safety gates',()=>{
     expect(migration).toContain("elsif v_registration_kind not in ('merchant','driver') then");
     expect(migration).toContain("set search_path = ''");
   });
+
+  it('uses only Android SecureStore-safe characters for the reauth marker',()=>{
+    const auth=text('src/lib/auth.ts');
+    const match=auth.match(/REAUTH_AT_KEY='([^']+)'/);
+    expect(match?.[1]).toBeTruthy();
+    expect(match?.[1]).toMatch(/^[A-Za-z0-9._-]+$/);
+  });
+
+  it('keeps required merchant and driver verification documents wired end to end',()=>{
+    const onboarding=text('src/lib/onboarding.ts');
+    const migration=text('supabase/migrations/202609131650_expand_onboarding_verification_documents.sql');
+    for(const column of ['national_id_front_path','national_id_back_path']){
+      expect(onboarding).toContain(column);
+      expect(migration).toContain(column);
+    }
+    expect(onboarding).toContain('commercial_registration_path');
+    expect(onboarding).toContain('driving_license_front_path');
+    expect(onboarding).toContain('vehicle_license_front_path');
+  });
 });
