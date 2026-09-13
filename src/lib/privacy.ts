@@ -13,11 +13,10 @@ export async function getMyProfile() {
   return data;
 }
 
-export async function updateMyProfile(input: { fullName: string; phone?: string | null }) {
-  const id = await currentUserId();
+export async function updateMyProfile(input: { fullName: string }) {
   if (!input.fullName.trim()) throw new Error('الاسم مطلوب');
-  const { data, error } = await supabase.from('profiles').update({ full_name: input.fullName.trim(), phone: input.phone?.trim() || null, updated_at: new Date().toISOString() }).eq('id', id).select('id,full_name,phone,avatar_url,is_active,created_at,updated_at').single();
-  if (error) throw error;
+  const {data,error}=await supabase.rpc('update_my_profile_name',{p_full_name:input.fullName.trim()});
+  if(error)throw new Error(error.message||'تعذر تحديث بيانات الحساب');
   return data;
 }
 
