@@ -1,72 +1,67 @@
-import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Field, Muted, Title, colors } from '@/src/components/ui';
-import { getAdminOverview, updateAdPlacement, updateCommercialSettings, updateStoreServiceAccess } from '@/src/lib/adminOps';
-import { getPendingRoleApplications } from '@/src/lib/adminApplications';
+import { useQuery } from '@tanstack/react-query';
+import { Button, Muted, Title } from '@/src/components/ui';
 import { getMyRoles } from '@/src/lib/api';
+import { getAdminDashboardSnapshot } from '@/src/lib/adminDashboard';
 
-export default function AdminConsole(){
-  const qc=useQueryClient();
-  const roles=useQuery({queryKey:['roles'],queryFn:getMyRoles});
-  const overview=useQuery({queryKey:['admin-overview'],queryFn:getAdminOverview,refetchInterval:30000,enabled:roles.data?.includes('admin')});
-  const pending=useQuery({queryKey:['admin-role-applications'],queryFn:getPendingRoleApplications,refetchInterval:15000,enabled:roles.data?.includes('admin')});
-  const data=overview.data;
-  const summary=useMemo(()=>{const orders=data?.orders??[];const delivered=orders.filter((x:any)=>x.status==='delivered');const active=orders.filter((x:any)=>!['delivered','cancelled','rejected'].includes(x.status));return{users:data?.profiles.length??0,stores:data?.stores.length??0,orders:orders.length,active:active.length,revenue:delivered.reduce((s:number,x:any)=>s+Number(x.total??0),0)};},[data]);
-  async function refresh(){await Promise.all([qc.invalidateQueries({queryKey:['admin-overview']}),qc.invalidateQueries({queryKey:['admin-role-applications']})]);}
+export default function AdminDashboard(){
+  const roles=useQuery({queryKey:['roles'],queryFn:getMyRoles,staleTime:60_000});
+  const dashboard=useQuery({queryKey:['admin-dashboard'],queryFn:getAdminDashboardSnapshot,enabled:roles.data?.includes('admin'),staleTime:30_000,refetchInterval:60_000});
+
   if(roles.isLoading)return <View style={s.center}><Muted>جاري التحقق من صلاحية الإدارة…</Muted></View>;
   if(!roles.data?.includes('admin'))return <View style={s.center}><Title>غير مصرح</Title><Muted>الحساب الحالي لا يملك صلاحية الإدارة.</Muted></View>;
-  if(overview.isLoading)return <View style={s.center}><Muted>جاري تجهيز مركز التحكم…</Muted></View>;
-  if(overview.isError)return <View style={s.center}><Title>تعذر تحميل لوحة الإدارة</Title><Muted>{overview.error instanceof Error?overview.error.message:'حاول مرة أخرى'}</Muted></View>;
-  const pendingCount=(pending.data?.merchant.length??0)+(pending.data?.driver.length??0);
+  if(dashboard.isLoading)return <View style={s.center}><Muted>جاري تجهيز لوحة القيادة…</Muted></View>;
+  if(dashboard.isError)return <View style={s.center}><Title>تعذر تحميل لوحة الإدارة</Title><Muted>{dashboard.error instanceof Error?dashboard.error.message:'حاول مرة أخرى'}</Muted><Button title="إعادة المحاولة" onPress={()=>void dashboard.refetch()}/></View>;
+
+  const data=dashboard.data!;
   return <ScrollView style={s.page} contentContainerStyle={s.content}>
-    <View style={s.hero}><View style={s.heroRow}><View style={s.liveDot}/><Text style={s.kicker}>ADMIN CONTROL CENTER</Text></View><Text style={s.heroTitle}>مركز قيادة طلباتك</Text><Text style={s.heroText}>الحساب الإداري مخصص لإدارة المنصة بالكامل. لا توجد هنا قوائم طلب كعميل أو سلة مشتريات.</Text></View>
+    <View style={s.hero}>
+      <View style={s.heroTop}><View style={s.liveDot}/><Text style={s.kicker}>ADMIN CONTROL CENTER</Text></View>
+      <Text style={s.heroTitle}>لوحة قيادة طلباتك</Text>
+      <Text style={s.heroText}>نظرة سريعة على المنصة، وبعدها ادخل للقسم المطلوب من غير ما كل أدوات الإدارة تبقى محشورة في شاشة واحدة.</Text>
+    </View>
 
-    <View style={s.metrics}><Metric title="المستخدمون" value={String(summary.users)} caption="حساب مسجل"/><Metric title="المتاجر" value={String(summary.stores)} caption="نشاط على المنصة"/><Metric title="طلبات نشطة" value={String(summary.active)} caption={`من ${summary.orders} طلب`}/><Metric title="قيمة المسلّم" value={`${summary.revenue.toFixed(0)} ج`} caption="إجمالي الطلبات المسلّمة"/></View>
+    <Text style={s.section}>نظرة عامة</Text>
+    <View style={s.metrics}>
+      <Metric label="المستخدمون" value={String(data.users)} note="حساب مسجل"/>
+      <Metric label="المتاجر" value={String(data.stores)} note="نشاط على المنصة"/>
+      <Metric label="طلبات نشطة" value={String(data.activeOrders)} note={`من ${data.totalOrders} طلب`}/>
+      <Metric label="قيمة المسلّم" value={`${Math.round(data.deliveredRevenue)} ج`} note="طلبات تم تسليمها"/>
+    </View>
 
-    <Text style={s.sectionTitle}>أعمال تحتاج قرارك</Text>
-    <Pressable onPress={()=>router.push('/admin/applications')} style={s.reviewCard}><View style={s.badge}><Text style={s.badgeText}>{pendingCount}</Text></View><View style={s.flex}><Text style={s.reviewTitle}>طلبات التجار والمندوبين</Text><Text style={s.reviewText}>راجع اللوجو، الموقع، الصورة الشخصية والرخص ثم وافق أو ارفض.</Text></View><Text style={s.arrow}>‹</Text></Pressable>
+    {(data.pendingApplications>0||data.openIssues>0||data.deletionRequests>0)?<>
+      <Text style={s.section}>يحتاج انتباهك</Text>
+      <View style={s.attentionRow}>
+        <AttentionCard value={data.pendingApplications} title="طلبات اعتماد" onPress={()=>router.push('/admin/applications')}/>
+        <AttentionCard value={data.openIssues+data.deletionRequests} title="متابعات تشغيل" onPress={()=>router.push('/admin/operations')}/>
+      </View>
+    </>:null}
 
-    <Text style={s.sectionTitle}>إدارة المنصة</Text>
-    <View style={s.navGrid}><NavCard icon="⚙️" title="التشغيل والمستخدمون" subtitle="الحسابات، الصلاحيات، المناطق، الصيانة، الحذف والبلاغات" onPress={()=>router.push('/admin-operations')}/><NavCard icon="📋" title="طلبات الاعتماد" subtitle="تجار ومندوبون ومستندات المراجعة" onPress={()=>router.push('/admin/applications')}/></View>
+    <Text style={s.section}>أقسام الإدارة</Text>
+    <View style={s.grid}>
+      <NavCard icon="👥" title="التشغيل والمستخدمون" subtitle="الحسابات، الأدوار، المناطق، البلاغات والحذف" onPress={()=>router.push('/admin/operations')}/>
+      <NavCard icon="✅" title="طلبات الاعتماد" subtitle="مراجعة التجار والمندوبين والمستندات" badge={data.pendingApplications} onPress={()=>router.push('/admin/applications')}/>
+      <NavCard icon="💳" title="الاشتراكات والعمولات" subtitle="الخدمات، الأسعار وعمولة المندوب" onPress={()=>router.push('/admin/commerce')}/>
+      <NavCard icon="📣" title="الإعلانات" subtitle="أماكن الإعلان ومزود العرض" onPress={()=>router.push('/admin/commerce')}/>
+    </View>
 
-    {data?.commercial?<CommercialControls key={String(data.commercial.updated_at)} commercial={data.commercial} onSaved={refresh}/>:null}
-
-    <Text style={s.sectionTitle}>خدمات كل متجر</Text><Muted>الافتراضي الحالي مجاني. من هنا تقدر مستقبلًا توقف خدمة المنصة أو الكاشير لمتجر بعينه وتحدد سعره وخطته.</Muted>
-    {(data?.stores??[]).map((store:any)=>{const access=(data?.storeAccess??[]).find((x:any)=>x.store_id===store.id)??{merchant_service_enabled:true,merchant_plan:'free',merchant_monthly_price:0,cashier_enabled:true,cashier_monthly_price:0};return <StoreAccessCard key={store.id} store={store} access={access} onSaved={refresh}/>;})}
-
-    <Text style={s.sectionTitle}>الإعلانات</Text><Muted>ثلاثة أماكن فقط ومقفولة افتراضيًا. تقدر تختار Google أو إعلان مباشر أو مزود آخر بدون وضع إعلانات في الدفع أو التتبع أو الأذكار.</Muted>
-    {(data?.ads??[]).map((ad:any)=><AdPlacementCard key={`${ad.id}-${ad.updated_at}`} ad={ad} onSaved={refresh}/>)}
-
-    <Card><Text style={s.cardTitle}>حالة البنية</Text><Muted>Database: {formatBytes(Number((data?.metrics as any)?.database_bytes??0))} • Storage: {formatBytes(Number((data?.metrics as any)?.storage_bytes??0))}</Muted><Muted>آخر تحديث للوحة: {new Date().toLocaleTimeString('ar-EG')}</Muted></Card>
+    <View style={s.footerCard}>
+      <Text style={s.footerTitle}>الحالة الحالية</Text>
+      <Text style={s.footerText}>المنصة تعمل • جلسة الإدارة محفوظة على هذا الجهاز • تحديث البيانات تلقائي كل دقيقة.</Text>
+    </View>
   </ScrollView>;
 }
 
-function Metric({title,value,caption}:{title:string;value:string;caption:string}){return <View style={s.metric}><Text style={s.metricTitle}>{title}</Text><Text style={s.metricValue}>{value}</Text><Text style={s.metricCaption}>{caption}</Text></View>}
-function NavCard({icon,title,subtitle,onPress}:{icon:string;title:string;subtitle:string;onPress:()=>void}){return <Pressable accessibilityRole="button" onPress={onPress} style={s.navCard}><Text style={s.navIcon}>{icon}</Text><Text style={s.navTitle}>{title}</Text><Text style={s.navSub}>{subtitle}</Text></Pressable>}
+function Metric({label,value,note}:{label:string;value:string;note:string}){return <View style={s.metric}><Text style={s.metricLabel}>{label}</Text><Text style={s.metricValue}>{value}</Text><Text style={s.metricNote}>{note}</Text></View>}
+function AttentionCard({value,title,onPress}:{value:number;title:string;onPress:()=>void}){return <Pressable onPress={onPress} style={s.attention}><Text style={s.attentionValue}>{value}</Text><Text style={s.attentionTitle}>{title}</Text><Text style={s.attentionArrow}>←</Text></Pressable>}
+function NavCard({icon,title,subtitle,badge,onPress}:{icon:string;title:string;subtitle:string;badge?:number;onPress:()=>void}){return <Pressable onPress={onPress} style={s.navCard}><View style={s.navTop}><View style={s.iconWrap}><Text style={s.icon}>{icon}</Text></View>{badge?<View style={s.badge}><Text style={s.badgeText}>{badge}</Text></View>:null}</View><Text style={s.navTitle}>{title}</Text><Text style={s.navSub}>{subtitle}</Text><Text style={s.open}>فتح القسم ←</Text></Pressable>}
 
-function CommercialControls({commercial,onSaved}:{commercial:any;onSaved:()=>Promise<unknown>}){
-  const [merchantPrice,setMerchantPrice]=useState(String(Number(commercial.merchant_default_monthly_price??0)));
-  const [cashierPrice,setCashierPrice]=useState(String(Number(commercial.cashier_default_monthly_price??0)));
-  const [driverCommission,setDriverCommission]=useState(String(Number(commercial.driver_platform_commission_percent??0)));
-  const [merchantRequired,setMerchantRequired]=useState(Boolean(commercial.merchant_subscription_required));
-  const [cashierRequired,setCashierRequired]=useState(Boolean(commercial.cashier_subscription_required));
-  async function save(){try{const mp=Number(merchantPrice),cp=Number(cashierPrice),dc=Number(driverCommission);if([mp,cp,dc].some(x=>!Number.isFinite(x))||mp<0||cp<0||dc<0||dc>100)throw new Error('راجع الأسعار ونسبة العمولة.');await updateCommercialSettings({merchantSubscriptionRequired:merchantRequired,merchantDefaultMonthlyPrice:mp,cashierSubscriptionRequired:cashierRequired,cashierDefaultMonthlyPrice:cp,driverPlatformCommissionPercent:dc});await onSaved();Alert.alert('تم الحفظ','تم تحديث الاشتراكات والعمولات.');}catch(e){Alert.alert('تعذر الحفظ',e instanceof Error?e.message:'حاول مرة أخرى');}}
-  return <><Text style={s.sectionTitle}>الاشتراكات والعمولات</Text><Card><View style={s.freeBanner}><Text style={s.freeText}>الوضع الحالي: مجاني بالكامل • عمولة المنصة من المندوب 0%</Text></View><Text style={s.cardTitle}>اشتراك التاجر</Text><Field value={merchantPrice} onChangeText={setMerchantPrice} keyboardType="decimal-pad" placeholder="السعر الشهري بالجنيه"/><Button title={merchantRequired?'مطلوب — اضغط لجعله مجانيًا':'مجاني حاليًا — اضغط لجعله مطلوبًا'} onPress={()=>setMerchantRequired(v=>!v)}/><Text style={s.cardTitle}>خدمة الكاشير</Text><Field value={cashierPrice} onChangeText={setCashierPrice} keyboardType="decimal-pad" placeholder="سعر الكاشير الشهري"/><Button title={cashierRequired?'اشتراك الكاشير مطلوب':'الكاشير مجاني للجميع حاليًا'} onPress={()=>setCashierRequired(v=>!v)}/><Text style={s.cardTitle}>عمولة المنصة من رسوم المندوب</Text><Field value={driverCommission} onChangeText={setDriverCommission} keyboardType="decimal-pad" placeholder="النسبة % — الآن 0"/><Button title="حفظ الإعدادات التجارية" onPress={save}/></Card></>;
-}
-
-function StoreAccessCard({store,access,onSaved}:{store:any;access:any;onSaved:()=>Promise<unknown>}){
-  const [merchantEnabled,setMerchantEnabled]=useState(Boolean(access.merchant_service_enabled));const [cashierEnabled,setCashierEnabled]=useState(Boolean(access.cashier_enabled));const [plan,setPlan]=useState(String(access.merchant_plan??'free'));const [merchantPrice,setMerchantPrice]=useState(String(Number(access.merchant_monthly_price??0)));const [cashierPrice,setCashierPrice]=useState(String(Number(access.cashier_monthly_price??0)));
-  async function save(){try{await updateStoreServiceAccess({storeId:store.id,merchantServiceEnabled:merchantEnabled,merchantPlan:plan||'free',merchantMonthlyPrice:Number(merchantPrice)||0,cashierEnabled,cashierMonthlyPrice:Number(cashierPrice)||0,merchantSubscriptionExpiresAt:access.merchant_subscription_expires_at??null,cashierSubscriptionExpiresAt:access.cashier_subscription_expires_at??null});await onSaved();Alert.alert('تم','تم تحديث خدمات المتجر.');}catch(e){Alert.alert('تعذر الحفظ',e instanceof Error?e.message:'حاول مرة أخرى');}}
-  return <Card><View style={s.storeHead}><View style={s.flex}><Text style={s.cardTitle}>{store.name}</Text><Muted>{merchantEnabled?'المنصة مفعلة':'خدمة المتجر موقوفة'} • {cashierEnabled?'الكاشير مفعّل':'الكاشير موقوف'}</Muted></View><Text style={[s.status,{color:merchantEnabled?'#067647':'#b42318'}]}>{merchantEnabled?'● نشط':'● موقوف'}</Text></View><Field value={plan} onChangeText={setPlan} placeholder="الخطة — free / basic / pro"/><View style={s.two}><View style={s.flex}><Field value={merchantPrice} onChangeText={setMerchantPrice} keyboardType="decimal-pad" placeholder="سعر المتجر"/></View><View style={s.flex}><Field value={cashierPrice} onChangeText={setCashierPrice} keyboardType="decimal-pad" placeholder="سعر الكاشير"/></View></View><Button title={merchantEnabled?'إيقاف خدمة المتجر':'تفعيل خدمة المتجر'} onPress={()=>setMerchantEnabled(v=>!v)}/><Button title={cashierEnabled?'إيقاف الكاشير':'تفعيل الكاشير'} onPress={()=>setCashierEnabled(v=>!v)}/><Button title="حفظ إعدادات هذا المتجر" onPress={save}/></Card>;
-}
-
-function AdPlacementCard({ad,onSaved}:{ad:any;onSaved:()=>Promise<unknown>}){
-  const [enabled,setEnabled]=useState(Boolean(ad.enabled));const [provider,setProvider]=useState<'direct'|'google'|'other'>(ad.provider??'direct');const [mediaUrl,setMediaUrl]=useState(ad.media_url??'');const [targetUrl,setTargetUrl]=useState(ad.target_url??'');const [googleId,setGoogleId]=useState(ad.google_ad_unit_id??'');
-  async function save(){try{await updateAdPlacement({placementKey:ad.placement_key,enabled,provider,platform:ad.platform??'all',mediaUrl,targetUrl,googleAdUnitId:googleId,priority:Number(ad.priority)||0});await onSaved();Alert.alert('تم','تم تحديث مكان الإعلان.');}catch(e){Alert.alert('تعذر الحفظ',e instanceof Error?e.message:'حاول مرة أخرى');}}
-  return <Card><View style={s.storeHead}><View style={s.flex}><Text style={s.cardTitle}>{ad.title}</Text><Muted>{ad.description}</Muted></View><Text style={[s.status,{color:enabled?'#067647':'#667085'}]}>{enabled?'● مفعّل':'● موقوف'}</Text></View><View style={s.providerRow}>{(['direct','google','other'] as const).map(x=><Pressable key={x} onPress={()=>setProvider(x)} style={[s.provider,provider===x&&s.providerActive]}><Text style={[s.providerText,provider===x&&s.providerTextActive]}>{x==='direct'?'مباشر':x==='google'?'Google':'شبكة أخرى'}</Text></Pressable>)}</View>{provider==='direct'?<><Field value={mediaUrl} onChangeText={setMediaUrl} placeholder="رابط الصورة / GIF / WebP"/><Field value={targetUrl} onChangeText={setTargetUrl} placeholder="الرابط عند الضغط"/></>:null}{provider==='google'?<Field value={googleId} onChangeText={setGoogleId} placeholder="Google Ad Unit ID"/>:null}<Button title={enabled?'إيقاف هذا المكان':'تفعيل هذا المكان'} onPress={()=>setEnabled(v=>!v)}/><Button title="حفظ الإعلان" onPress={save}/></Card>;
-}
-function formatBytes(value:number){if(!Number.isFinite(value)||value<=0)return '0 B';const units=['B','KB','MB','GB'];let n=value,i=0;while(n>=1024&&i<units.length-1){n/=1024;i++;}return `${n.toFixed(i?1:0)} ${units[i]}`;}
-
-const s=StyleSheet.create({page:{flex:1,backgroundColor:'#f4f6f8'},content:{padding:18,paddingBottom:46,gap:14,direction:'rtl'},center:{flex:1,backgroundColor:'#f4f6f8',padding:24,justifyContent:'center',gap:12},hero:{backgroundColor:'#101828',borderRadius:30,padding:24,gap:8},heroRow:{flexDirection:'row-reverse',alignItems:'center',gap:7},liveDot:{width:8,height:8,borderRadius:4,backgroundColor:'#12b76a'},kicker:{color:'#fdb022',fontSize:12,fontWeight:'900',letterSpacing:1},heroTitle:{color:'#fff',fontSize:29,fontWeight:'900',textAlign:'right'},heroText:{color:'#d0d5dd',lineHeight:22,textAlign:'right'},metrics:{flexDirection:'row-reverse',flexWrap:'wrap',gap:10},metric:{width:'48%',backgroundColor:'#fff',borderRadius:20,padding:16,borderWidth:1,borderColor:'#eaecf0'},metricTitle:{color:'#667085',fontSize:12,fontWeight:'700',textAlign:'right'},metricValue:{color:'#101828',fontSize:25,fontWeight:'900',textAlign:'right',marginVertical:3},metricCaption:{color:'#98a2b3',fontSize:11,textAlign:'right'},sectionTitle:{fontSize:20,fontWeight:'900',color:'#101828',textAlign:'right',marginTop:6},reviewCard:{backgroundColor:'#fffaeb',borderWidth:1,borderColor:'#fedf89',borderRadius:20,padding:16,flexDirection:'row-reverse',alignItems:'center',gap:12},badge:{width:48,height:48,borderRadius:16,backgroundColor:'#f79009',alignItems:'center',justifyContent:'center'},badgeText:{color:'#fff',fontWeight:'900',fontSize:20},reviewTitle:{fontWeight:'900',fontSize:17,color:'#7a2e0e',textAlign:'right'},reviewText:{color:'#93370d',fontSize:12,lineHeight:19,textAlign:'right'},arrow:{fontSize:34,color:'#b54708'},navGrid:{flexDirection:'row-reverse',gap:10},navCard:{flex:1,backgroundColor:'#fff',borderRadius:20,padding:16,borderWidth:1,borderColor:'#eaecf0',gap:7},navIcon:{fontSize:25,textAlign:'right'},navTitle:{fontWeight:'900',color:'#101828',textAlign:'right'},navSub:{fontSize:11,lineHeight:18,color:'#667085',textAlign:'right'},cardTitle:{fontSize:16,fontWeight:'900',color:colors.text,textAlign:'right'},freeBanner:{backgroundColor:'#ecfdf3',borderRadius:13,padding:11},freeText:{color:'#067647',fontWeight:'800',textAlign:'right',fontSize:12},two:{flexDirection:'row-reverse',gap:8},flex:{flex:1},storeHead:{flexDirection:'row-reverse',alignItems:'flex-start',gap:10},status:{fontWeight:'900',fontSize:12},providerRow:{flexDirection:'row-reverse',gap:7},provider:{flex:1,padding:10,borderRadius:12,borderWidth:1,borderColor:'#d0d5dd',alignItems:'center'},providerActive:{backgroundColor:'#fff4ed',borderColor:colors.primary},providerText:{fontSize:12,fontWeight:'800',color:'#475467'},providerTextActive:{color:'#b93815'}});
+const s=StyleSheet.create({
+  page:{flex:1,backgroundColor:'#f5f7fb'},content:{padding:20,paddingBottom:36,gap:14},center:{flex:1,alignItems:'center',justifyContent:'center',padding:28,gap:12},
+  hero:{backgroundColor:'#101828',borderRadius:28,padding:24,gap:10,shadowColor:'#000',shadowOpacity:.12,shadowRadius:20,shadowOffset:{width:0,height:8},elevation:6},heroTop:{flexDirection:'row',alignItems:'center',gap:8},liveDot:{width:9,height:9,borderRadius:5,backgroundColor:'#12b76a'},kicker:{color:'#fdb022',fontSize:13,fontWeight:'900',letterSpacing:.7},heroTitle:{color:'#fff',fontSize:31,fontWeight:'900',textAlign:'right'},heroText:{color:'#d0d5dd',fontSize:15,lineHeight:24,textAlign:'right'},
+  section:{fontSize:22,fontWeight:'900',color:'#101828',textAlign:'right',marginTop:8},metrics:{flexDirection:'row',flexWrap:'wrap',gap:12},metric:{width:'48%',backgroundColor:'#fff',borderRadius:22,padding:18,borderWidth:1,borderColor:'#eaecf0'},metricLabel:{color:'#667085',fontSize:13,fontWeight:'700',textAlign:'right'},metricValue:{color:'#101828',fontSize:28,fontWeight:'900',marginVertical:4,textAlign:'right'},metricNote:{color:'#98a2b3',fontSize:12,textAlign:'right'},
+  attentionRow:{flexDirection:'row',gap:12},attention:{flex:1,backgroundColor:'#fff7ed',borderRadius:20,padding:16,borderWidth:1,borderColor:'#fed7aa'},attentionValue:{fontSize:26,fontWeight:'900',color:'#ea580c',textAlign:'right'},attentionTitle:{fontSize:14,fontWeight:'800',color:'#9a3412',textAlign:'right'},attentionArrow:{fontSize:18,color:'#c2410c',marginTop:8},
+  grid:{flexDirection:'row',flexWrap:'wrap',gap:12},navCard:{width:'48%',minHeight:180,backgroundColor:'#fff',borderRadius:22,padding:18,borderWidth:1,borderColor:'#e4e7ec'},navTop:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},iconWrap:{width:44,height:44,borderRadius:14,backgroundColor:'#f2f4f7',alignItems:'center',justifyContent:'center'},icon:{fontSize:24},badge:{minWidth:28,height:28,borderRadius:14,backgroundColor:'#f97316',alignItems:'center',justifyContent:'center',paddingHorizontal:8},badgeText:{color:'#fff',fontWeight:'900'},navTitle:{fontSize:16,fontWeight:'900',color:'#101828',textAlign:'right',marginTop:14},navSub:{fontSize:13,color:'#667085',lineHeight:20,textAlign:'right',marginTop:6},open:{fontSize:12,fontWeight:'800',color:'#f97316',textAlign:'right',marginTop:'auto',paddingTop:12},
+  footerCard:{backgroundColor:'#ecfdf3',borderRadius:20,padding:18,borderWidth:1,borderColor:'#abefc6'},footerTitle:{fontSize:15,fontWeight:'900',color:'#067647',textAlign:'right'},footerText:{fontSize:13,lineHeight:21,color:'#067647',textAlign:'right',marginTop:5}
+});
