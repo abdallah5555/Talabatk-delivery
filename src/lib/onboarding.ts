@@ -3,6 +3,13 @@ import { File as ExpoFile } from 'expo-file-system';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { supabase } from './supabase';
 
+function derivePhone(user:{email?:string|null;user_metadata?:Record<string,unknown>}){
+  const metadata=typeof user.user_metadata?.phone==='string'?user.user_metadata.phone.trim():'';
+  if(metadata)return metadata;
+  const match=(user.email??'').match(/^u_(20\d+)@talabak\.internal\.net$/);
+  return match?`+${match[1]}`:null;
+}
+
 async function currentUser() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('يجب تسجيل الدخول أولًا.');
@@ -13,7 +20,14 @@ export async function getOnboardingIdentity() {
   const user = await currentUser();
   const { data, error } = await supabase.from('profiles').select('id,full_name,phone,avatar_url').eq('id', user.id).single();
   if (error) throw error;
-  return data;
+  const fallbackName=typeof user.user_metadata?.full_name==='string'?user.user_metadata.full_name.trim():'';
+  const fallbackPhone=derivePhone(user);
+  const fullName=data.full_name?.trim()||fallbackName||'مستخدم طلباتك';
+  const phone=data.phone?.trim()||fallbackPhone;
+  if((!data.full_name?.trim()&&fallbackName)||(!data.phone?.trim()&&fallbackPhone)){
+    await supabase.from('profiles').update({full_name:fullName,phone,updated_at:new Date().toISOString()}).eq('id',user.id);
+  }
+  return {...data,full_name:fullName,phone};
 }
 
 function safeExt(asset: ImagePickerAsset) {
@@ -57,7 +71,8 @@ export async function submitMerchantOnboarding(input: {
   commercialRegistrationPath: string;
   taxCardPath?: string | null;
 }) {
-  await currentUser();
+  const profile=await getOnboardingIdentity();
+  if(!profile.phone)throw new Error('تعذر ربط رقم الهاتف بالحساب. سجّل خروج ثم دخول مرة واحدة وحاول تاني.');
   const { data, error } = await supabase.rpc('submit_merchant_application',{
     p_business_name:input.businessName.trim(),
     p_category:input.category.trim(),
@@ -86,7 +101,8 @@ export async function submitDriverOnboarding(input: {
   vehicleLicenseBackPath?: string | null;
   policeClearancePath?: string | null;
 }) {
-  await currentUser();
+  const profile=await getOnboardingIdentity();
+  if(!profile.phone)throw new Error('تعذر ربط رقم الهاتف بالحساب. سجّل خروج ثم دخول مرة واحدة وحاول تاني.');
   const { data, error } = await supabase.rpc('submit_driver_application',{
     p_transport_mode:input.transportMode,
     p_motorcycle_type:input.motorcycleType??'',
