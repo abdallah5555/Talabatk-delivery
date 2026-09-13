@@ -7,6 +7,10 @@ on:
         description: Update message shown in Expo history
         required: true
         default: Production update
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -17,12 +21,15 @@ concurrency:
 
 jobs:
   publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -37,4 +44,4 @@ jobs:
             exit 1
           fi
       - name: Publish Android production OTA update
-        run: npx eas-cli@latest update --channel production --platform android --message "${{ inputs.message }}" --environment production --non-interactive
+        run: npx eas-cli@latest update --channel production --platform android --message "${{ github.event.inputs.message || 'Verified production update' }}" --environment production --non-interactive
