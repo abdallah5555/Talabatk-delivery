@@ -17,6 +17,7 @@
     "lint": "expo lint",
     "doctor": "expo install --check",
     "test": "vitest run tests",
+    "test:backend-auth": "node scripts/backend-auth-live.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {
