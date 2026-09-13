@@ -18,16 +18,14 @@ async function currentUser() {
 
 export async function getOnboardingIdentity() {
   const user = await currentUser();
-  const { data, error } = await supabase.from('profiles').select('id,full_name,phone,avatar_url').eq('id', user.id).single();
-  if (error) throw error;
+  const { data:rpcData, error:rpcError } = await supabase.rpc('get_my_profile_summary');
+  if(rpcError) throw rpcError;
+  const data=Array.isArray(rpcData)?rpcData[0]:rpcData;
   const fallbackName=typeof user.user_metadata?.full_name==='string'?user.user_metadata.full_name.trim():'';
   const fallbackPhone=derivePhone(user);
-  const fullName=data.full_name?.trim()||fallbackName||'مستخدم طلباتك';
-  const phone=data.phone?.trim()||fallbackPhone;
-  if((!data.full_name?.trim()&&fallbackName)||(!data.phone?.trim()&&fallbackPhone)){
-    await supabase.from('profiles').update({full_name:fullName,phone,updated_at:new Date().toISOString()}).eq('id',user.id);
-  }
-  return {...data,full_name:fullName,phone};
+  const fullName=(typeof data?.full_name==='string'?data.full_name.trim():'')||fallbackName||fallbackPhone||'حساب طلباتك';
+  const phone=(typeof data?.phone==='string'?data.phone.trim():'')||fallbackPhone;
+  return {id:data?.id??user.id,full_name:fullName,phone,avatar_url:data?.avatar_url??null};
 }
 
 function safeExt(asset: ImagePickerAsset) {
