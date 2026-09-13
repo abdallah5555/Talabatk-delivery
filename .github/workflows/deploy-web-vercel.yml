@@ -12,6 +12,7 @@ jobs:
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_PROJECT_ID: prj_ASiJ63ws8tFxtJ5v4gSwXA9edmsc
+      VERCEL_ORG_ID: team_IlAVJa9RpG1jhOFW974WTEOr
       VERCEL_TEAM: abdallah-a17f
     steps:
       - name: Require Vercel token
