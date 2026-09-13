@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bag" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8a00"/>
+      <stop offset="0.62" stop-color="#ff6800"/>
+      <stop offset="1" stop-color="#e74600"/>
+    </linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ea4d00"/>
+      <stop offset="1" stop-color="#c93600"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="#ffffff"/>
+  <g transform="translate(92 178)">
+    <path d="M345 148 L360 54 Q368 0 431 0 H550 Q615 0 611 61 L602 148" fill="none" stroke="url(#bag)" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M686 151 Q733 156 771 192 L805 226 Q829 250 833 292 L866 542 Q871 589 838 615 Q824 627 791 637 L737 653 L704 151 Z" fill="url(#side)"/>
+    <path d="M292 148 H680 Q725 148 730 194 L760 569 Q765 620 713 629 H283 Q235 629 240 579 L281 198 Q286 148 292 148 Z" fill="url(#bag)"/>
+    <g fill="url(#bag)">
+      <rect x="82" y="236" width="223" height="46" rx="23"/>
+      <rect x="0" y="329" width="249" height="50" rx="25"/>
+      <rect x="58" y="430" width="137" height="44" rx="22"/>
+    </g>
+    <path d="M527 235 C458 235 402 291 402 360 C402 452 527 568 527 568 C527 568 652 452 652 360 C652 291 596 235 527 235 Z" fill="#ffffff"/>
+    <circle cx="527" cy="359" r="58" fill="url(#bag)"/>
+  </g>
+</svg>
