@@ -50,3 +50,4 @@ jobs:
           name: talabatk-android-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+# Verification trigger after Expo package-lock synchronization.
