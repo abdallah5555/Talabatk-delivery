@@ -10,12 +10,12 @@
 - Android: APK مباشر للتثبيت.
 - iPhone/iPad: PWA عبر Safari.
 - Backend: Supabase.
-- Vercel لاحقًا للمشروع الجديد فقط؛ لا تلمس مشروع Vercel القديم.
+- Vercel للمشروع الجديد فقط؛ لا تلمس مشروع Vercel القديم.
 
 ## 2) Supabase
 - Project ref: `vriwhtuxagnbfxybjviz`.
 - URL: `https://vriwhtuxagnbfxybjviz.supabase.co`.
-- Region: `eu-central-1`، والحالة Healthy.
+- Region الحي الصحيح: `eu-north-1`، والحالة Healthy.
 - لا تضع Service Role أو أي Secret في المستودع العام.
 - DDL عبر migrations / `apply_migration`، والبيانات/الفحص عبر `execute_sql`.
 - `SECURITY DEFINER` يجب أن يستخدم `search_path` آمن وschema-qualified names.
@@ -31,73 +31,82 @@
 - Admin → `/admin` ولا يذهب لواجهة العميل.
 - Pending → `/pending-approval`.
 - تسجيل التاجر/المندوب غير المكتمل → `/onboarding`.
-- توجد regression tests لقواعد التوجيه.
 
-## 4) التسجيل والدخول
+## 4) التسجيل والدخول والجلسات
 - التسجيل: عميل / تاجر / مندوب.
 - Phone + Password، بدون SMS OTP.
-- يوجد **تأكيد كلمة المرور** في التسجيل.
-- يوجد **إظهار/إخفاء كلمة المرور** في الدخول والتسجيل.
-- تم إخفاء عنوان Route الافتراضي `index`.
-- نجاح تسجيل الدخول منفصل عن تحميل الصلاحيات؛ فشل role lookup لا يظهر كأن الباسورد غلط.
-- شاشة خطأ التوجيه فيها Retry + تسجيل الدخول بحساب آخر.
-- Approved roles لها أولوية قبل فحص Pending، فلا يتعطل الأدمن/التاجر/المندوب المعتمد بسبب استعلام Pending.
+- يوجد تأكيد كلمة المرور في التسجيل وإظهار/إخفاء كلمة المرور.
+- نجاح تسجيل الدخول منفصل عن تحميل الصلاحيات.
+- العميل ينتقل مباشرة للواجهة بعد التسجيل ولا يحتاج موافقة إدارة.
+- Supabase Auth يستخدم `persistSession: true` + `autoRefreshToken: true`.
+- Native auth storage عبر `expo-secure-store` وليس localStorage.
+- من 2026-09-13: الجلسة تبقى مفتوحة 72 ساعة بعد تسجيل دخول/تسجيل جديد، ثم يطلب التطبيق Interactive Login مرة أخرى. لا يتم تخزين كلمة المرور.
+- الحساب الموقوف يتم تسجيل خروجه محليًا عند التحقق.
 
-## 5) Onboarding التاجر
+## 5) إصلاح مشكلة تجهيز الحساب — 2026-09-13
+السبب الجذري الذي ظهر على الموبايل:
+- `has_role()` و`is_admin()` كانتا تقرآن `public.user_roles` من داخل RLS policies على نفس الجدول/جداول تعتمد عليه.
+- هذا تسبب في RLS recursion أثناء قراءة `profiles` / `user_roles`، فكان تسجيل الدخول ينجح لكن تحميل الصلاحيات يفشل ويظهر `تعذر تجهيز حسابك` أو `تعذر التحقق من حالة الحساب` للعميل والأدمن.
+
+الإصلاح المنفذ:
+- migration: `202609131535_fix_role_policy_recursion.sql`.
+- `has_role(public.app_role)` و`is_admin()` أصبحتا `SECURITY DEFINER` مع `search_path = pg_catalog, public`.
+- EXECUTE مقيد بشكل مناسب؛ `has_role` للمستخدمين authenticated، و`is_admin` متاح كذلك لـanon لأن public-read policies تستدعيه ويعيد false عند `auth.uid() is null`.
+- migration إضافية: `202609131545_allow_anon_safe_admin_check.sql`.
+- تم اختبار RLS تحت role `authenticated` بدون recursion.
+- تم اختبار قراءة `maintenance_mode` تحت role `anon` بنجاح.
+
+## 6) سرعة فتح التطبيق — 2026-09-13
+- AppGate لم يعد ينفذ auth + admin role round-trips على كل فتح عادي.
+- فحص maintenance أصبح خفيفًا وغير حاجب للواجهة أثناء انتظار الشبكة.
+- lookup لدور admin لا يحدث إلا إذا كان maintenance mode مفعّلًا فعليًا.
+- stale/refetch لفحص الصيانة = 5 دقائق بدل فحص متكرر كل 30 ثانية.
+- OTA لا يمنع الفتح لأن `fallbackToCacheTimeout = 0`.
+
+## 7) Onboarding التاجر
 - اسم النشاط، التصنيف، العنوان، اللوجو/صورة المتجر، GPS.
 - بعد الإرسال: Pending.
 - موافقة الأدمن فقط تمنح `merchant` وتجهز المتجر.
-- المتجر الجديد يبدأ `is_open=false` حتى يجهزه التاجر ويفتحه بنفسه.
+- المتجر الجديد يبدأ `is_open=false`.
 - `public-media` للصور العامة، و`onboarding-documents` للمستندات الخاصة.
 
-## 6) Onboarding المندوب
+## 8) Onboarding المندوب
 - الاسم/الهاتف من الحساب، صورة شخصية، Motorcycle أو Bicycle.
 - Motorcycle: النوع/الموديل + رخصة قيادة أمام/خلف + رخصة المركبة أمام/خلف.
 - Bicycle لا يطلب مستندات الدراجة النارية.
 - المستندات الخاصة في bucket خاص.
-- الصورة الشخصية تصبح Avatar بعد الموافقة.
 - Pending حتى موافقة الأدمن فقط.
 
-## 7) لوحة الإدارة
-تم تحويلها إلى Control Center منفصلة عن واجهة العميل، وتشمل:
-- KPIs ومراجعة طلبات التاجر/المندوب.
-- عرض بيانات النشاط والموقع واللوجو.
-- عرض مستندات المندوب عبر Signed URLs.
+## 9) لوحة الإدارة
+- Control Center منفصلة عن واجهة العميل.
+- KPIs + طلبات التاجر/المندوب + المستندات عبر Signed URLs.
 - Approve/Reject.
 - الاشتراكات والكاشير وعمولة المندوب.
-- التحكم بخدمات المتاجر والإعلانات والبنية الأساسية.
+- التحكم بالخدمات والإعلانات والبنية الأساسية.
 
-## 8) الاشتراكات/الكاشير/العمولة
-الجداول: `platform_commercial_settings`, `store_service_access`.
-الحالة الحالية:
+## 10) الاشتراكات/الكاشير/العمولة
 - Merchant subscription required = false.
 - Merchant default price = 0.
 - Cashier subscription required = false.
 - Cashier default price = 0.
 - Driver platform commission = 0%.
 - المندوب يحصل حاليًا على 100%.
-- النظام جاهز لتغيير القيم لاحقًا من الإدارة بدون تغيير تاريخ أرباح الطلبات القديمة.
 
-## 9) الإعلانات
-- جداول `ad_slots`, `ad_campaigns`.
-- Slots: Home Top / Home Inline / Store Bottom، افتراضيًا Disabled.
+## 11) الإعلانات
+- `ad_slots`, `ad_campaigns`.
+- Home Top / Home Inline / Store Bottom معطلة افتراضيًا.
 - لا Ads داخل Checkout / Order Tracking / Adhkar.
-- `react-native-google-mobile-ads` موجود.
-- Android AdMob App ID مضبوط في المشروع.
-- ما زالت Banner Ad Unit IDs الحقيقية غير مستلمة.
-- قبل Live Ads: Test Ads/Test Devices + privacy/consent.
+- Android AdMob App ID مضبوط.
+- Banner Ad Unit IDs الحقيقية لم تصل بعد.
+- قبل Live Ads: test devices + privacy/consent.
 
-## 10) الأذكار
+## 12) الأذكار
 - صباح/مساء Offline.
 - عدادات محلية.
 - إشعارات محلية اختيارية.
-- بدون إعلانات في الصفحة.
+- بدون إعلانات.
 
-## 11) إعادة التصميم المنفذة
-تمت إعادة تصميم: Login, Signup, Home, Account, Store, Checkout, Orders, Order Tracking, Merchant Dashboard, Driver Dashboard, Admin Dashboard, Applications, Onboarding, Pending Approval.
-
-## 12) Expo OTA
-تمت إضافة `expo-updates` وتجهيز OTA.
+## 13) Expo OTA
 - Expo Project ID: `1a617642-b1c4-4a68-8fa5-98c0ad3c7911`.
 - `runtimeVersion.policy = appVersion`.
 - `updates.url = https://u.expo.dev/1a617642-b1c4-4a68-8fa5-98c0ad3c7911`.
@@ -105,38 +114,30 @@
 - `fallbackToCacheTimeout = 0`.
 - `OtaUpdateBanner` يفحص التحديث وينزله ويعيد تحميل التطبيق.
 - Workflow: `.github/workflows/ota-production.yml`.
-- يحتاج `EXPO_TOKEN` كـGitHub Secret؛ لا يوضع في الكود.
-- JS/UI/assets يمكن تحديثها OTA مع نفس runtime. Native changes تحتاج APK جديدة.
+- يحتاج `EXPO_TOKEN` كـGitHub Secret لتشغيل أول OTA Production حقيقي.
+- JS/UI/assets يمكن تحديثها OTA داخل نفس runtime؛ Native changes تحتاج APK جديدة.
 
-## 13) اللوجو والهوية — آخر حالة 2026-09-10
-- المستخدم اختار **اللوجو الثاني والأخير**: شنطة توصيل برتقالية + location pin، وأسفلها `Talabatk Delivery`.
-- هذا الاختيار يلغي اللوجو الأول.
-- لأيقونة التطبيق/PWA تم استخراج رمز الشنطة/location pin نفسه وتحويله إلى نسخة Flat Orange/White صغيرة ومقروءة.
-- `assets/app-icon.png` تم استبداله بPNG صغير ومتحقق منه.
-- `public/icons/icon-192.png` و`icon-512.png` تم استبدالهما بملفات سليمة من نفس الرمز.
-- مشكلة PNG القديمة مرت بمرحلتين: `CRC error` ثم MIME/filter corruption بسبب نقل ملفات binary كبيرة. تم حل السبب باستخدام PNG مسطحة صغيرة.
-- **CI run 236 على commit `babc3ab9ece34cf56a2da979dfc33c1f7ae932b3` نجح بالكامل**، بما فيه Web Export وPlaywright؛ إذًا مشكلة Jimp/PNG مغلقة.
-- تم إنشاء `assets/adaptive-icon.png` شفاف من نفس الرمز وربطه في `app.json` مع Android Adaptive Icon على commit `4675034ffdd4136555e8a3bdffabcfde36e4a668`.
+## 14) اللوجو والهوية
+- الهوية المعتمدة: شنطة توصيل برتقالية + location pin، وأسفلها `Talabatk Delivery` في اللوجو الكامل.
+- الأيقونة: نفس الرمز Flat Orange/White.
+- `assets/app-icon.png`, `assets/adaptive-icon.png`, `assets/brand-logo.png` مستخدمة فعليًا.
+- PWA icons: `public/icons/icon-192.png` و`icon-512.png`.
 
-## 14) Splash وشاشة التحميل
+## 15) Splash وشاشة التحميل
 - `index` مخفي من Stack.
-- AppGate يعرض شاشة تحميل branded باسم `طلباتك دليفري` وعبارة `كل اللي محتاجه أقرب ليك` مع مؤشر تحميل.
-- Native splash حاليًا يستخدم `assets/app-icon.png` على خلفية فاتحة، ثم ينتقل لشاشة التحميل branded داخل React.
-- الهدف: لا شاشة بيضاء صامتة أثناء فتح التطبيق.
+- AppGate branded باسم `طلباتك دليفري` وعبارة `كل اللي محتاجه أقرب ليك`.
+- Native splash يستخدم `assets/brand-logo.png` على خلفية بيضاء.
 
-## 15) الاختبارات
-Pipeline الحالي: Expo Doctor → ESLint → TypeScript → Vitest → Expo Web Export → Playwright E2E، مع Android Release workflow منفصل.
-آخر نتيجة مؤكدة قبل Adaptive Icon:
-- Doctor ✅
-- Lint ✅ (يوجد warning قديم غير مانع في `app/order/[id].tsx` عن eslint-disable غير مستخدم)
-- TypeScript ✅
-- Unit Tests: 12/12 ✅
-- Web Export ✅
-- Playwright ✅
+## 16) نسخة Android الحالية — 2026-09-13
+- App version: `0.1.2`.
+- Android `versionCode = 3`.
+- Commit build baseline: `340730cca375514c2c67c91601fc008807439787`.
+- CI run #262: ✅ Doctor / Lint / TypeScript / Unit / Web Export / Playwright E2E كلها نجحت.
+- Android APK run #184: ✅ Release APK build + artifact upload نجح.
+- Artifact: `talabatk-android-release-apk`.
+- هذه النسخة تحتوي إصلاح سرعة startup + 72h session policy، بينما إصلاح RLS نفسه Server-side ومطبق حيًا في Supabase.
 
-لا تدّعي Production-Ready قبل إكمال authenticated E2E للأدوار والـOTA الحقيقي.
-
-## 16) أشياء ممنوعة حاليًا
+## 17) أشياء ممنوعة حاليًا
 - Minimum Order enforcement.
 - Proof of Delivery PIN.
 - Payment Gateway.
@@ -144,28 +145,29 @@ Pipeline الحالي: Expo Doctor → ESLint → TypeScript → Vitest → Expo
 - Google Maps API مدفوع.
 - Coupon discounts at checkout.
 
-## 17) خريطة Production Hardening
-الخطة تشمل: Security audit، Supabase Auth، password/PIN security، trusted devices، RBAC/RLS، DB source of truth، orders totals/states/atomic driver acceptance/capacity، commission، GPS/OSM+MapLibre، payments الحالية، complaints/audit، backup بدون أسرار، إزالة mock data، merchant/driver applications، ratings/notifications، PWA/service worker/dark mode، mobile UI/accessibility/network handling، lint/build/security/env/admin settings، ثم final production check.
+## 18) خريطة Production Hardening
+الخطة تشمل Security audit، Supabase Auth، password/PIN security، trusted devices، RBAC/RLS، DB source of truth، orders totals/states/atomic driver acceptance/capacity، commission، GPS/OSM+MapLibre، complaints/audit، backup بدون أسرار، إزالة mock data، applications، ratings/notifications، PWA/service worker/dark mode، mobile UI/accessibility/network handling، lint/build/security/env/admin settings، ثم final production check.
 
-## 18) المتبقي المعروف — حسب الأولوية
-1. انتظار CI + Android build على commit Adaptive Icon الحالي.
-2. استخراج **APK انتقالية جديدة** تحتوي expo-updates + الهوية الجديدة + إصلاحات الدخول.
-3. تثبيت/تأكيد Android signing ثابت قبل التوزيع الواسع حتى تُثبت الإصدارات الجديدة فوق القديمة بدون حذف التطبيق.
-4. إضافة `EXPO_TOKEN` كـGitHub Secret وتشغيل أول OTA Production حقيقي.
-5. اختبار APK الانتقالية تستقبل OTA داخل نفس التطبيق.
-6. Authenticated E2E: customer signup/login/order؛ merchant signup→onboarding→pending→approve→dashboard؛ driver documents→pending→approve→online→accept→delivered؛ admin reject/approve.
-7. تحسين Merchant management/report وDriver operations وAdmin operations بصريًا.
-8. تحسين اختيار الموقع بخريطة + camera capture للمستندات والصور.
-9. عرض صورة/بيانات المندوب للعميل أثناء التتبع.
-10. Network/offline UI وتدقيق PWA النهائي.
-11. Store hours UI، CSV reports، nearby-order distance، background driver location، وباقي final hardening.
-12. الإعلانات الحقيقية بعد استلام Ad Unit IDs وإكمال consent/privacy.
+## 19) المتبقي المعروف — حسب الأولوية
+1. تثبيت وتجربة APK 0.1.2 على جهاز حقيقي، خصوصًا العميل والأدمن بعد إصلاح RLS.
+2. التأكد أن versionCode 3 يتثبت فوق النسخة السابقة بدون حذف التطبيق؛ لو فشل نثبت Android signing دائم قبل أي توزيع واسع.
+3. إضافة `EXPO_TOKEN` وتشغيل أول OTA Production حقيقي على runtime 0.1.2.
+4. اختبار أن APK 0.1.2 تستقبل OTA فعليًا.
+5. Authenticated E2E الحقيقي: customer signup/login/order؛ merchant signup→onboarding→pending→approve→dashboard؛ driver docs→pending→approve→online→accept→delivered؛ admin approve/reject.
+6. فحص RLS/RPC negative tests ضد IDOR/BOLA والتنافس على قبول الطلب.
+7. تحسين Merchant reports / Driver operations / Admin operations.
+8. تحسين map picker + camera capture.
+9. عرض صورة/بيانات المندوب للعميل أثناء lifecycle المسموح.
+10. Network/offline UI + PWA final audit.
+11. Store hours UI + CSV + nearby distance + background driver location.
+12. Supabase security/performance advisors ثم remediate.
+13. Live ads فقط بعد IDs الحقيقية والـconsent.
 
-## 19) قاعدة الاستكمال في أي شات جديد
-إذا قال المستخدم: **`كمل مشروع طلباتك دليفري من آخر حاجة وصلنا لها`** أو **`كمل التطبيق من آخر نقطة`**:
-1. اقرأ `PROJECT_HANDOFF_AR.md` أولًا.
-2. راجع `main` وآخر CI/Android runs.
+## 20) قاعدة الاستكمال
+إذا قال المستخدم `كمل`:
+1. اقرأ هذا الملف.
+2. راجع آخر `main` وآخر CI/Android run.
 3. لا تلمس المستودع القديم.
-4. لا تفترض أن خطوة انتهت إلا لو الكود/DB/CI يثبت ذلك.
-5. ابدأ من قسم `المتبقي المعروف`.
-6. حدّث هذا الملف بعد كل دفعة شغل مهمة وقبل إنهاء جلسة عمل كبيرة.
+4. لا تعتبر أي خطوة منتهية بدون دليل من الكود/DB/CI.
+5. ابدأ من قسم المتبقي المعروف.
+6. حدّث هذا الملف بعد أي دفعة عمل كبيرة.
