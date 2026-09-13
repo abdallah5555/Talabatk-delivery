@@ -95,11 +95,23 @@ describe('production safety gates',()=>{
     expect(migration).toContain('talabak\\.internal\\.net');
   });
 
+  it('loads the signed-in profile through a self-scoped RPC',()=>{
+    const onboarding=text('src/lib/onboarding.ts');
+    const account=text('app/account.tsx');
+    const migration=text('supabase/migrations/202609132225_secure_my_profile_summary.sql');
+    expect(onboarding).toContain("supabase.rpc('get_my_profile_summary')");
+    expect(migration).toContain('where p.id = auth.uid()');
+    expect(account).not.toContain("'مستخدم طلباتك'");
+  });
+
   it('keeps adhkar reminders selectable from one to fifteen minutes and shows full sections',()=>{
     const adhkar=text('src/lib/adhkar.ts');
     const screen=text('app/adhkar.tsx');
     expect(adhkar).toContain('Math.min(15,Math.max(1');
     expect(adhkar).toContain('TIME_INTERVAL');
+    expect(adhkar).toContain('seconds:interval*60');
+    expect(adhkar).toContain('لا إله إلا الله وحده لا شريك له');
+    expect(adhkar).not.toContain("title:'ذكر بسيط 🤲'");
     expect(screen).toContain('intervalOptions=[1,2,3,4,5,10,15]');
     expect(adhkar).toContain("title:'أذكار النوم'");
     expect(adhkar).toContain("title:'أذكار السفر'");
