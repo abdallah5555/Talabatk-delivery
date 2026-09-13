@@ -24,6 +24,13 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
+      - name: Live backend/auth smoke
+        run: npm run test:backend-auth
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://vriwhtuxagnbfxybjviz.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_3NRqWSIZd3KnxVKQ0ngRyg_IvqLZ0aO
+          BACKEND_TEST_EMAIL: ${{ secrets.BACKEND_TEST_EMAIL }}
+          BACKEND_TEST_PASSWORD: ${{ secrets.BACKEND_TEST_PASSWORD }}
       - run: npm run export:web
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
