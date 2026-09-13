@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/src/lib/supabase';
 import { clearInteractiveAuthMarker, requiresInteractiveReauth } from '@/src/lib/auth';
@@ -14,6 +14,7 @@ export function useAuth() { return useContext(AuthContext); }
 export function AppProviders({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastUserId=useRef<string|null>(null);
 
   useEffect(() => {
     let mounted=true;
@@ -41,6 +42,15 @@ export function AppProviders({ children }: PropsWithChildren) {
       data.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(()=>{
+    const nextId=session?.user?.id??null;
+    if(lastUserId.current!==nextId){
+      // Never reuse role/profile/admin data from the previous signed-in account.
+      queryClient.clear();
+      lastUserId.current=nextId;
+    }
+  },[session?.user?.id]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
