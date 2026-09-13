@@ -1,6 +1,29 @@
 import { supabase } from './supabase';
+import { authStorage } from './storage';
 
 export type RegistrationKind='customer'|'merchant'|'driver';
+
+const REAUTH_AT_KEY='talabatk:last-interactive-auth-at';
+export const REAUTH_WINDOW_MS=72*60*60*1000;
+
+async function markInteractiveAuth(){
+  await authStorage.setItem(REAUTH_AT_KEY,String(Date.now()));
+}
+
+export async function requiresInteractiveReauth(){
+  const value=await authStorage.getItem(REAUTH_AT_KEY);
+  const timestamp=Number(value);
+  if(!value||!Number.isFinite(timestamp)){
+    // Give already-installed sessions a fresh 72h window after this upgrade.
+    await markInteractiveAuth();
+    return false;
+  }
+  return Date.now()-timestamp>=REAUTH_WINDOW_MS;
+}
+
+export async function clearInteractiveAuthMarker(){
+  await authStorage.removeItem(REAUTH_AT_KEY);
+}
 
 export function normalizeEgyptPhone(value:string){
   const raw=value.replace(/[\s()-]/g,'');
@@ -26,7 +49,11 @@ function loginEmails(phone:string){
 async function assertActive(userId:string){
   const {data:profile,error}=await supabase.from('profiles').select('is_active').eq('id',userId).maybeSingle();
   if(error) throw new Error('تعذر التحقق من حالة الحساب حاليًا. حاول مرة أخرى.');
-  if(profile?.is_active===false){await supabase.auth.signOut();throw new Error('الحساب موقوف حاليًا. تواصل مع الدعم.');}
+  if(profile?.is_active===false){
+    await supabase.auth.signOut({scope:'local'});
+    await clearInteractiveAuthMarker();
+    throw new Error('الحساب موقوف حاليًا. تواصل مع الدعم.');
+  }
 }
 
 export async function signInPhonePassword(phone:string,password:string){
@@ -34,7 +61,11 @@ export async function signInPhonePassword(phone:string,password:string){
   const emails=loginEmails(phone);
   for(const email of emails){
     const {data,error}=await supabase.auth.signInWithPassword({email,password});
-    if(!error&&data.user){await assertActive(data.user.id);return data;}
+    if(!error&&data.user){
+      await assertActive(data.user.id);
+      await markInteractiveAuth();
+      return data;
+    }
   }
   throw new Error('رقم الهاتف أو كلمة المرور غير صحيحة.');
 }
@@ -58,5 +89,6 @@ export async function signUpPhonePassword(input:{name:string;phone:string;passwo
   const {data:session,error:loginError}=await supabase.auth.signInWithPassword({email,password:input.password});
   if(loginError||!session.user||!session.session) throw new Error('تم إنشاء الحساب، لكن تعذر بدء الجلسة. سجل الدخول من صفحة الدخول.');
   await assertActive(session.user.id);
+  await markInteractiveAuth();
   return session;
 }
