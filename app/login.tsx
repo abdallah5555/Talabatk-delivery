@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Button, Card, Field, Muted, PasswordField, Title, colors } from '@/src/components/ui';
@@ -9,9 +9,10 @@ export default function Login() {
   const [password,setPassword]=useState('');
   const [busy,setBusy]=useState(false);
 
-  useEffect(()=>{
-    if(!phone.trim()&&password) setPassword('');
-  },[phone,password]);
+  function changePhone(value:string){
+    setPhone(value);
+    if(!value.trim()) setPassword('');
+  }
 
   async function submit(){
     setBusy(true);
@@ -24,7 +25,7 @@ export default function Login() {
   }
   return <ScrollView style={s.page} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
     <View style={s.hero}><Text style={s.brand}>طلباتك دليفري</Text><Text style={s.heroTitle}>أهلاً برجوعك</Text><Text style={s.heroText}>سجّل دخولك وكمل من المكان المناسب لحسابك مباشرة.</Text></View>
-    <Card><Title>تسجيل الدخول</Title><Muted>استخدم رقم الموبايل وكلمة المرور الخاصة بحسابك.</Muted><Field accessibilityLabel="رقم الهاتف" keyboardType="phone-pad" placeholder="رقم الموبايل" value={phone} onChangeText={setPhone}/><PasswordField accessibilityLabel="كلمة المرور" placeholder="كلمة المرور" value={password} onChangeText={setPassword}/><Button title={busy?'جاري الدخول…':'دخول'} onPress={submit} disabled={busy||!phone.trim()||password.length<8}/></Card>
+    <Card><Title>تسجيل الدخول</Title><Muted>استخدم رقم الموبايل وكلمة المرور الخاصة بحسابك.</Muted><Field accessibilityLabel="رقم الهاتف" keyboardType="phone-pad" placeholder="رقم الموبايل" value={phone} onChangeText={changePhone}/><PasswordField accessibilityLabel="كلمة المرور" placeholder="كلمة المرور" value={password} onChangeText={setPassword}/><Button title={busy?'جاري الدخول…':'دخول'} onPress={submit} disabled={busy||!phone.trim()||password.length<8}/></Card>
     <Link href="/signup" style={s.link}>مستخدم جديد؟ أنشئ حسابك</Link>
   </ScrollView>;
 }
