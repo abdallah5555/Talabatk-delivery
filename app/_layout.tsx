@@ -29,6 +29,8 @@ export default function RootLayout() {
             <Stack.Screen name="addresses" options={{ title:'عناويني' }} />
             <Stack.Screen name="favorites" options={{ title:'المفضلة' }} />
             <Stack.Screen name="notifications" options={{ title:'الإشعارات' }} />
+            <Stack.Screen name="privacy" options={{ title:'بياناتي والخصوصية' }} />
+            <Stack.Screen name="security" options={{ title:'الأمان وكلمة المرور' }} />
           </Stack>
         </View>
       </AppGate>
