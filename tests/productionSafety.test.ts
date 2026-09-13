@@ -61,4 +61,17 @@ describe('production safety gates',()=>{
     expect(onboarding).toContain('driving_license_front_path');
     expect(onboarding).toContain('vehicle_license_front_path');
   });
+
+  it('breaks the orders and driver_status RLS cycle with definer helpers',()=>{
+    const migration=text('supabase/migrations/202609131715_break_orders_driver_status_rls_cycle.sql');
+    expect(migration).toContain('current_driver_is_online()');
+    expect(migration).toContain('customer_can_read_driver_status');
+    expect(migration).not.toMatch(/from public\.driver_status ds[\s\S]*create policy orders_read[\s\S]*exists \([\s\S]*from public\.driver_status/i);
+  });
+
+  it('scopes private store contacts to the same order store',()=>{
+    const migration=text('supabase/migrations/202609131720_fix_store_private_contacts_order_scope.sql');
+    expect(migration).toContain('o.store_id = store_private_contacts.store_id');
+    expect(migration).not.toContain('o.store_id = o.store_id');
+  });
 });
