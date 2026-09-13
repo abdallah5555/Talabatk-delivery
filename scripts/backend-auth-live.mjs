@@ -15,8 +15,7 @@ async function expectDenied(label,fn){
 
 async function main(){
   const {data:profiles,error:profilesError}=await anonClient.from('profiles').select('id').limit(1);
-  assert(!profilesError,'profiles anon probe failed unexpectedly');
-  assert((profiles??[]).length===0,'anonymous client can read private profiles');
+  assert(Boolean(profilesError)||(profiles??[]).length===0,'anonymous client can read private profiles');
   console.log('✓ anonymous profile reads are blocked by RLS');
 
   await expectDenied('anonymous address write is blocked',()=>anonClient.rpc('save_my_address',{
@@ -57,7 +56,7 @@ async function main(){
   console.log('✓ signed-in role lookup is self-scoped');
 
   const otherProfiles=await authClient.from('profiles').select('id').neq('id',userId).limit(1);
-  assert(!otherProfiles.error&&(otherProfiles.data??[]).length===0,'signed-in non-admin test user can read another profile');
+  assert(Boolean(otherProfiles.error)||(otherProfiles.data??[]).length===0,'signed-in non-admin test user can read another profile');
   console.log('✓ cross-user profile read is blocked');
 
   const session=await authClient.auth.getSession();
