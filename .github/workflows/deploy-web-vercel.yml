@@ -1,0 +1,43 @@
+name: deploy-web-vercel
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: prj_ASiJ63ws8tFxtJ5v4gSwXA9edmsc
+      VERCEL_TEAM: abdallah-a17f
+    steps:
+      - name: Require Vercel token
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "VERCEL_TOKEN is not configured; skipping deployment setup."
+            exit 0
+          fi
+      - uses: actions/checkout@v6
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-node@v6
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --no-audit --no-fund
+        if: ${{ env.VERCEL_TOKEN != '' }}
+      - run: cp .env.example .env
+        if: ${{ env.VERCEL_TOKEN != '' }}
+      - run: npm run export:web
+        if: ${{ env.VERCEL_TOKEN != '' }}
+      - name: Deploy web/PWA to Vercel production
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        run: |
+          npx vercel@latest link --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_TEAM" --token "$VERCEL_TOKEN"
+          npx vercel@latest deploy dist --prod --yes --scope "$VERCEL_TEAM" --token "$VERCEL_TOKEN"
