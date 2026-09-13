@@ -9,6 +9,7 @@ on:
       - 'assets/**'
       - 'app.json'
       - 'package.json'
+      - 'package-lock.json'
       - 'eas.json'
       - '.github/workflows/android-apk.yml'
   workflow_dispatch:
@@ -32,14 +33,19 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
       - run: npm ci --no-audit --no-fund
       - run: cp .env.example .env
       - run: CI=1 npx expo prebuild --platform android
-      - name: Build standalone release APK
+      - name: Tune Gradle for GitHub runner
+        working-directory: android
+        run: |
+          printf '\norg.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8\norg.gradle.workers.max=2\n' >> gradle.properties
+      - name: Build standalone release APK (arm64)
         working-directory: android
         env:
           NODE_ENV: production
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: talabatk-android-release-apk
