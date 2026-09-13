@@ -4,15 +4,28 @@ import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { Card, Muted, Screen, Title, colors } from './ui';
 import { supabase } from '@/src/lib/supabase';
 
-async function getGateState(){
-  const [{data:setting,error:settingError},{data:{user}}]=await Promise.all([
-    supabase.from('app_settings').select('value').eq('key','maintenance_mode').maybeSingle(),
-    supabase.auth.getUser(),
-  ]);
-  if(settingError) throw settingError;
-  let admin=false;
-  if(user){const {data,error}=await supabase.from('user_roles').select('role').eq('user_id',user.id).eq('role','admin').maybeSingle();if(error) throw error;admin=Boolean(data);}
-  return {maintenance:Boolean(setting?.value),admin};
+async function getMaintenanceState(){
+  const {data:setting,error}=await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key','maintenance_mode')
+    .maybeSingle();
+  if(error) throw error;
+  const maintenance=Boolean(setting?.value);
+  if(!maintenance) return {maintenance:false,admin:false};
+
+  // Only resolve the current role when maintenance is actually enabled.
+  // This avoids extra auth + role network round-trips on every normal startup.
+  const {data:{session}}=await supabase.auth.getSession();
+  if(!session?.user?.id) return {maintenance:true,admin:false};
+  const {data,error:roleError}=await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id',session.user.id)
+    .eq('role','admin')
+    .maybeSingle();
+  if(roleError) throw roleError;
+  return {maintenance:true,admin:Boolean(data)};
 }
 
 function LoadingBrand(){
@@ -26,11 +39,23 @@ function LoadingBrand(){
 }
 
 export function AppGate({children}:PropsWithChildren){
-  const gate=useQuery({queryKey:['app-gate'],queryFn:getGateState,refetchInterval:30000,retry:2});
-  if(gate.isLoading) return <LoadingBrand/>;
+  const gate=useQuery({
+    queryKey:['app-gate'],
+    queryFn:getMaintenanceState,
+    staleTime:5*60*1000,
+    refetchInterval:5*60*1000,
+    retry:1,
+    retryDelay:500,
+  });
+
+  // A maintenance check must never hold a healthy app on a loading screen.
+  // The query keeps running in the background and will replace the UI only
+  // when maintenance mode is positively confirmed.
   if(gate.data?.maintenance&&!gate.data.admin) return <Screen><Card><Title>بنحسّن طلباتك</Title><Text style={{textAlign:'right',fontWeight:'800'}}>الخدمة متوقفة مؤقتًا لأعمال صيانة قصيرة.</Text><Muted>حاول فتح التطبيق مرة تانية بعد قليل.</Muted></Card></Screen>;
   return <>{children}</>;
 }
+
+export { LoadingBrand };
 
 const s=StyleSheet.create({
   loading:{flex:1,backgroundColor:'#f8f9fa',alignItems:'center',justifyContent:'center',padding:28,gap:12},
