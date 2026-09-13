@@ -2,7 +2,7 @@
   "expo": {
     "name": "طلباتك دليفري",
     "slug": "talabatk-delivery",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "runtimeVersion": { "policy": "appVersion" },
     "updates": {
       "url": "https://u.expo.dev/1a617642-b1c4-4a68-8fa5-98c0ad3c7911",
@@ -20,9 +20,9 @@
     "newArchEnabled": true,
     "icon": "./assets/app-icon.png",
     "splash": {
-      "image": "./assets/app-icon.png",
+      "image": "./assets/brand-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#f8f9fa"
+      "backgroundColor": "#ffffff"
     },
     "plugins": [
       "expo-router",
@@ -30,13 +30,14 @@
       "@maplibre/maplibre-react-native",
       ["expo-image-picker", { "photosPermission": "طلباتك يحتاج الوصول للصور لاختيار اللوجو والصورة الشخصية وصور المستندات.", "cameraPermission": "طلباتك يحتاج الكاميرا لتصوير اللوجو والصورة الشخصية والمستندات.", "microphonePermission": false }],
       ["expo-location", { "locationWhenInUsePermission": "طلباتك يحتاج موقعك لتحديد موقع النشاط ولتحديث موقع المندوب أثناء الوردية." }],
-      ["expo-notifications", { "color": "#e8590c", "defaultChannel": "orders" }],
+      ["expo-notifications", { "color": "#ff6f00", "defaultChannel": "orders" }],
       ["react-native-google-mobile-ads", { "androidAppId": "ca-app-pub-3630733404130483~6106030269", "optimizeInitialization": true, "optimizeAdLoading": true }]
     ],
     "android": {
       "package": "com.talabatk.delivery",
+      "versionCode": 2,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/app-icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
