@@ -1,13 +1,20 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Muted, Title } from '@/src/components/ui';
 import { getMyRoles } from '@/src/lib/api';
 import { getAdminDashboardSnapshot } from '@/src/lib/adminDashboard';
+import { supabase } from '@/src/lib/supabase';
 
 export default function AdminDashboard(){
   const roles=useQuery({queryKey:['roles'],queryFn:getMyRoles,staleTime:60_000});
   const dashboard=useQuery({queryKey:['admin-dashboard'],queryFn:getAdminDashboardSnapshot,enabled:roles.data?.includes('admin'),staleTime:30_000,refetchInterval:60_000});
+
+  async function switchAccount(){
+    const {error}=await supabase.auth.signOut();
+    if(error)return Alert.alert('تعذر تبديل الحساب',error.message);
+    router.replace('/login');
+  }
 
   if(roles.isLoading)return <View style={s.center}><Muted>جاري التحقق من صلاحية الإدارة…</Muted></View>;
   if(!roles.data?.includes('admin'))return <View style={s.center}><Title>غير مصرح</Title><Muted>الحساب الحالي لا يملك صلاحية الإدارة.</Muted></View>;
@@ -50,6 +57,7 @@ export default function AdminDashboard(){
       <Text style={s.footerTitle}>الحالة الحالية</Text>
       <Text style={s.footerText}>المنصة تعمل • جلسة الإدارة محفوظة على هذا الجهاز • تحديث البيانات تلقائي كل دقيقة.</Text>
     </View>
+    <Pressable accessibilityRole="button" style={s.switch} onPress={()=>void switchAccount()}><Text style={s.switchText}>تبديل الحساب / تسجيل الخروج</Text></Pressable>
   </ScrollView>;
 }
 
@@ -63,5 +71,5 @@ const s=StyleSheet.create({
   section:{fontSize:22,fontWeight:'900',color:'#101828',textAlign:'right',marginTop:8},metrics:{flexDirection:'row',flexWrap:'wrap',gap:12},metric:{width:'48%',backgroundColor:'#fff',borderRadius:22,padding:18,borderWidth:1,borderColor:'#eaecf0'},metricLabel:{color:'#667085',fontSize:13,fontWeight:'700',textAlign:'right'},metricValue:{color:'#101828',fontSize:28,fontWeight:'900',marginVertical:4,textAlign:'right'},metricNote:{color:'#98a2b3',fontSize:12,textAlign:'right'},
   attentionRow:{flexDirection:'row',gap:12},attention:{flex:1,backgroundColor:'#fff7ed',borderRadius:20,padding:16,borderWidth:1,borderColor:'#fed7aa'},attentionValue:{fontSize:26,fontWeight:'900',color:'#ea580c',textAlign:'right'},attentionTitle:{fontSize:14,fontWeight:'800',color:'#9a3412',textAlign:'right'},attentionArrow:{fontSize:18,color:'#c2410c',marginTop:8},
   grid:{flexDirection:'row',flexWrap:'wrap',gap:12},navCard:{width:'48%',minHeight:180,backgroundColor:'#fff',borderRadius:22,padding:18,borderWidth:1,borderColor:'#e4e7ec'},navTop:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},iconWrap:{width:44,height:44,borderRadius:14,backgroundColor:'#f2f4f7',alignItems:'center',justifyContent:'center'},icon:{fontSize:24},badge:{minWidth:28,height:28,borderRadius:14,backgroundColor:'#f97316',alignItems:'center',justifyContent:'center',paddingHorizontal:8},badgeText:{color:'#fff',fontWeight:'900'},navTitle:{fontSize:16,fontWeight:'900',color:'#101828',textAlign:'right',marginTop:14},navSub:{fontSize:13,color:'#667085',lineHeight:20,textAlign:'right',marginTop:6},open:{fontSize:12,fontWeight:'800',color:'#f97316',textAlign:'right',marginTop:'auto',paddingTop:12},
-  footerCard:{backgroundColor:'#ecfdf3',borderRadius:20,padding:18,borderWidth:1,borderColor:'#abefc6'},footerTitle:{fontSize:15,fontWeight:'900',color:'#067647',textAlign:'right'},footerText:{fontSize:13,lineHeight:21,color:'#067647',textAlign:'right',marginTop:5}
+  footerCard:{backgroundColor:'#ecfdf3',borderRadius:20,padding:18,borderWidth:1,borderColor:'#abefc6'},footerTitle:{fontSize:15,fontWeight:'900',color:'#067647',textAlign:'right'},footerText:{fontSize:13,lineHeight:21,color:'#067647',textAlign:'right',marginTop:5},switch:{minHeight:50,borderRadius:16,borderWidth:1,borderColor:'#d0d5dd',backgroundColor:'#fff',alignItems:'center',justifyContent:'center'},switchText:{color:'#344054',fontWeight:'900'}
 });
