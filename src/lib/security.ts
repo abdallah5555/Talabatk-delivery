@@ -1,21 +1,16 @@
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import { supabase } from './supabase';
+import { trustedDeviceStorage } from './storage';
 
 const DEVICE_TOKEN_KEY = 'talabatk_trusted_device_token_v1';
 
 async function readDeviceToken() {
-  if (Platform.OS === 'web') return globalThis.localStorage?.getItem(DEVICE_TOKEN_KEY) ?? null;
-  return SecureStore.getItemAsync(DEVICE_TOKEN_KEY);
+  return trustedDeviceStorage.getItem(DEVICE_TOKEN_KEY);
 }
 
 async function writeDeviceToken(value: string) {
-  if (Platform.OS === 'web') {
-    globalThis.localStorage?.setItem(DEVICE_TOKEN_KEY, value);
-    return;
-  }
-  await SecureStore.setItemAsync(DEVICE_TOKEN_KEY, value, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+  await trustedDeviceStorage.setItem(DEVICE_TOKEN_KEY, value);
 }
 
 export async function getOrCreateDeviceToken() {
@@ -54,5 +49,6 @@ export async function verifyPin(pin: string, trustDevice = true) {
 export async function revokeTrustedDevices() {
   const { data, error } = await supabase.rpc('revoke_trusted_devices');
   if (error) throw error;
+  await trustedDeviceStorage.removeItem(DEVICE_TOKEN_KEY);
   return Number(data ?? 0);
 }
