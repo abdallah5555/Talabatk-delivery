@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/src/lib/supabase';
+import { clearInteractiveAuthMarker, requiresInteractiveReauth } from '@/src/lib/auth';
 import { registerPushForCurrentUser, subscribeToInAppNotifications } from '@/src/lib/pushNotifications';
 import { CartProvider } from '@/src/state/cart';
 
@@ -13,16 +14,40 @@ export function useAuth() { return useContext(AuthContext); }
 export function AppProviders({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setLoading(false); });
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
-    return () => data.subscription.unsubscribe();
+    let mounted=true;
+    async function bootstrap(){
+      try{
+        const {data}=await supabase.auth.getSession();
+        const current=data.session;
+        if(current&&await requiresInteractiveReauth()){
+          await supabase.auth.signOut({scope:'local'});
+          await clearInteractiveAuthMarker();
+          if(mounted) setSession(null);
+        }else if(mounted){
+          setSession(current);
+        }
+      }finally{
+        if(mounted) setLoading(false);
+      }
+    }
+    void bootstrap();
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+      if(mounted) setSession(next);
+    });
+    return () => {
+      mounted=false;
+      data.subscription.unsubscribe();
+    };
   }, []);
+
   useEffect(() => {
     if (!session?.user?.id) return;
     void registerPushForCurrentUser().catch(() => undefined);
     return subscribeToInAppNotifications(session.user.id);
   }, [session?.user?.id]);
+
   const auth = useMemo(() => ({ session, loading }), [session, loading]);
   return <QueryClientProvider client={queryClient}><AuthContext.Provider value={auth}><CartProvider>{children}</CartProvider></AuthContext.Provider></QueryClientProvider>;
 }
