@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Updates from 'expo-updates';
 
@@ -6,6 +6,12 @@ type State = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'erro
 
 export function OtaUpdateBanner() {
   const [state, setState] = useState<State>('idle');
+  const updates = Updates.useUpdates();
+  const progress = useMemo(() => {
+    if (state === 'ready') return 1;
+    if (state !== 'downloading') return 0;
+    return Math.max(0.08, Math.min(0.98, updates.downloadProgress ?? 0.08));
+  }, [state, updates.downloadProgress]);
 
   useEffect(() => {
     if (Platform.OS === 'web' || !Updates.isEnabled) return;
@@ -36,7 +42,16 @@ export function OtaUpdateBanner() {
         return;
       }
       setState('ready');
-      await Updates.reloadAsync();
+      await new Promise(resolve => setTimeout(resolve, 450));
+      await Updates.reloadAsync({
+        reloadScreenOptions: {
+          backgroundColor: '#f8f9fa',
+          image: require('../../assets/app-icon.png'),
+          imageResizeMode: 'contain',
+          spinner: { enabled: true, color: '#e8590c', size: 'large' },
+          fade: true,
+        },
+      });
     } catch {
       setState('error');
     }
@@ -44,22 +59,24 @@ export function OtaUpdateBanner() {
 
   if (Platform.OS === 'web' || !Updates.isEnabled || state === 'idle' || state === 'checking') return null;
 
+  const busy = state === 'downloading' || state === 'ready';
   return (
     <View style={styles.wrap} accessibilityLiveRegion="polite">
       <View style={styles.textWrap}>
-        <Text style={styles.title}>{state === 'error' ? 'تعذر تنزيل التحديث' : 'تحديث جديد متاح'}</Text>
+        <Text style={styles.title}>{state === 'error' ? 'تعذر تنزيل التحديث' : busy ? 'جاري تحديث طلباتك' : 'تحديث جديد متاح'}</Text>
         <Text style={styles.sub}>
           {state === 'error'
             ? 'اتأكد من اتصال الإنترنت وحاول مرة أخرى.'
             : state === 'downloading'
-              ? 'جاري تنزيل التحديث الصغير…'
+              ? `جاري تنزيل التحديث… ${Math.round(progress * 100)}%`
               : state === 'ready'
-                ? 'تم تنزيل التحديث. جاري تشغيل النسخة الجديدة…'
+                ? 'تم التنزيل. جاري تشغيل النسخة الجديدة بشكل آمن…'
                 : 'نزّل آخر تحسينات طلباتك من غير ما تعيد تثبيت التطبيق.'}
         </Text>
+        {busy ? <View style={styles.track}><View style={[styles.fill,{width:`${Math.round(progress*100)}%`}]} /></View> : null}
       </View>
-      {state === 'downloading' || state === 'ready' ? (
-        <ActivityIndicator />
+      {busy ? (
+        <ActivityIndicator color="#e8590c" />
       ) : (
         <Pressable accessibilityRole="button" onPress={() => void install()} style={styles.button}>
           <Text style={styles.buttonText}>{state === 'error' ? 'إعادة المحاولة' : 'تحديث الآن'}</Text>
@@ -82,9 +99,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  textWrap: { flex: 1, gap: 3 },
+  textWrap: { flex: 1, gap: 6 },
   title: { textAlign: 'right', fontWeight: '900', color: '#9a3412', fontSize: 15 },
   sub: { textAlign: 'right', color: '#7c2d12', fontSize: 12, lineHeight: 18 },
+  track:{height:6,borderRadius:999,backgroundColor:'#ffedd5',overflow:'hidden'},
+  fill:{height:'100%',borderRadius:999,backgroundColor:'#e8590c'},
   button: { backgroundColor: '#e8590c', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
   buttonText: { color: '#fff', fontWeight: '900', fontSize: 12 },
 });
