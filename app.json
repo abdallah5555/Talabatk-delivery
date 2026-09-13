@@ -7,7 +7,10 @@
     "updates": {
       "url": "https://u.expo.dev/1a617642-b1c4-4a68-8fa5-98c0ad3c7911",
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
     },
     "extra": {
       "eas": {
@@ -35,7 +38,7 @@
     ],
     "android": {
       "package": "com.talabatk.delivery",
-      "versionCode": 8,
+      "versionCode": 9,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
