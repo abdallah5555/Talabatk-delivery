@@ -4,13 +4,14 @@ import { readFileSync } from 'node:fs';
 const text=(path:string)=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
 describe('update and reminder regressions',()=>{
-  it('shows visible OTA progress and a branded reload screen',()=>{
+  it('shows visible OTA download progress without forcing a native reload',()=>{
     const ota=text('src/components/OtaUpdateBanner.tsx');
     expect(ota).toContain('downloadProgress');
-    expect(ota).toContain('جاري تحديث طلباتك');
-    expect(ota).toContain('reloadScreenOptions');
-    expect(ota).toContain("backgroundColor: '#f8f9fa'");
-    expect(ota).toContain("require('../../assets/app-icon.png')");
+    expect(ota).toContain('جاري تنزيل التحديث');
+    expect(ota).toContain('التحديث جاهز');
+    expect(ota).toContain('fetchUpdateAsync');
+    expect(ota).not.toContain('reloadAsync');
+    expect(ota).not.toContain('reloadScreenOptions');
   });
 
   it('refreshes old adhkar schedules after an OTA so legacy notification text disappears',()=>{
