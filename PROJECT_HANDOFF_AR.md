@@ -40,7 +40,9 @@
 - العميل ينتقل مباشرة للواجهة بعد التسجيل ولا يحتاج موافقة إدارة.
 - Supabase Auth يستخدم `persistSession: true` + `autoRefreshToken: true`.
 - Native auth storage عبر `expo-secure-store` وليس localStorage.
-- من 2026-09-13: الجلسة تبقى مفتوحة 72 ساعة بعد تسجيل دخول/تسجيل جديد، ثم يطلب التطبيق Interactive Login مرة أخرى. لا يتم تخزين كلمة المرور.
+- الجلسة تبقى مفتوحة 72 ساعة بعد تسجيل دخول/تسجيل جديد، ثم يطلب التطبيق Interactive Login مرة أخرى. لا يتم تخزين كلمة المرور.
+- تم إصلاح Crash تسجيل الدخول على Android الناتج عن مفتاح SecureStore غير صالح؛ المفتاح الحالي `talabatk_last_interactive_auth_at` ويستخدم حروفًا مسموحة فقط.
+- عند مسح رقم الهاتف من شاشة الدخول يتم مسح كلمة المرور تلقائيًا، مع regression test في Playwright.
 - الحساب الموقوف يتم تسجيل خروجه محليًا عند التحقق.
 
 ## 5) إصلاح مشكلة تجهيز الحساب — 2026-09-13
@@ -65,21 +67,28 @@
 
 ## 7) Onboarding التاجر
 - اسم النشاط، التصنيف، العنوان، اللوجو/صورة المتجر، GPS.
+- مستندات التحقق المطلوبة الآن: بطاقة الرقم القومي وش/ظهر + السجل التجاري.
+- البطاقة الضريبية اختيارية حاليًا.
+- migration: `202609131650_expand_onboarding_verification_documents.sql` أضاف مسارات المستندات إلى `merchant_applications`.
+- المستندات الخاصة ترفع إلى `onboarding-documents`، بينما اللوجو العام في `public-media`.
 - بعد الإرسال: Pending.
 - موافقة الأدمن فقط تمنح `merchant` وتجهز المتجر.
 - المتجر الجديد يبدأ `is_open=false`.
-- `public-media` للصور العامة، و`onboarding-documents` للمستندات الخاصة.
 
 ## 8) Onboarding المندوب
 - الاسم/الهاتف من الحساب، صورة شخصية، Motorcycle أو Bicycle.
+- إثبات الهوية مطلوب للجميع: بطاقة الرقم القومي وش/ظهر.
 - Motorcycle: النوع/الموديل + رخصة قيادة أمام/خلف + رخصة المركبة أمام/خلف.
-- Bicycle لا يطلب مستندات الدراجة النارية.
-- المستندات الخاصة في bucket خاص.
+- Bicycle لا يطلب رخصة قيادة أو رخصة موتوسيكل، لكنه يظل يحتاج الهوية والصورة الشخصية.
+- صحيفة الحالة الجنائية/الفيش متاحة كوثيقة اختيارية حاليًا.
+- migration: `202609131650_expand_onboarding_verification_documents.sql` أضاف هوية المندوب والفيش إلى `driver_applications`.
+- المستندات الخاصة في bucket `onboarding-documents`.
 - Pending حتى موافقة الأدمن فقط.
 
 ## 9) لوحة الإدارة
 - Control Center منفصلة عن واجهة العميل.
 - KPIs + طلبات التاجر/المندوب + المستندات عبر Signed URLs.
+- الإدارة ترى الآن مستندات هوية التاجر والسجل التجاري والبطاقة الضريبية، ومستندات هوية المندوب والرخص والفيش عند توفره.
 - Approve/Reject.
 - الاشتراكات والكاشير وعمولة المندوب.
 - التحكم بالخدمات والإعلانات والبنية الأساسية.
@@ -129,13 +138,14 @@
 - Native splash يستخدم `assets/brand-logo.png` على خلفية بيضاء.
 
 ## 16) نسخة Android الحالية — 2026-09-13
-- App version: `0.1.2`.
-- Android `versionCode = 3`.
-- Commit build baseline: `340730cca375514c2c67c91601fc008807439787`.
-- CI run #262: ✅ Doctor / Lint / TypeScript / Unit / Web Export / Playwright E2E كلها نجحت.
-- Android APK run #184: ✅ Release APK build + artifact upload نجح.
+- App version: `0.1.3`.
+- Android `versionCode = 4`.
+- Build source commit: `69c883deb15acd9dc3619af9e8f9a8bc911a75ed`.
+- Latest full CI run #275: ✅ Doctor / Lint / TypeScript / Unit / Web Export / Playwright E2E كلها نجحت.
+- Android APK run #192: ✅ Release APK build + artifact upload نجح.
 - Artifact: `talabatk-android-release-apk`.
-- هذه النسخة تحتوي إصلاح سرعة startup + 72h session policy، بينما إصلاح RLS نفسه Server-side ومطبق حيًا في Supabase.
+- APK يتضمن إصلاح SecureStore، مسح الباسورد عند مسح الهاتف، مستندات التاجر/المندوب الجديدة، سرعة startup، وسياسة الجلسة 72 ساعة.
+- DB migration الخاصة بمستندات التحقق مطبقة حيًا وتم التحقق من وجود الأعمدة.
 
 ## 17) أشياء ممنوعة حاليًا
 - Minimum Order enforcement.
@@ -149,14 +159,14 @@
 الخطة تشمل Security audit، Supabase Auth، password/PIN security، trusted devices، RBAC/RLS، DB source of truth، orders totals/states/atomic driver acceptance/capacity، commission، GPS/OSM+MapLibre، complaints/audit، backup بدون أسرار، إزالة mock data، applications، ratings/notifications، PWA/service worker/dark mode، mobile UI/accessibility/network handling، lint/build/security/env/admin settings، ثم final production check.
 
 ## 19) المتبقي المعروف — حسب الأولوية
-1. تثبيت وتجربة APK 0.1.2 على جهاز حقيقي، خصوصًا العميل والأدمن بعد إصلاح RLS.
-2. التأكد أن versionCode 3 يتثبت فوق النسخة السابقة بدون حذف التطبيق؛ لو فشل نثبت Android signing دائم قبل أي توزيع واسع.
-3. إضافة `EXPO_TOKEN` وتشغيل أول OTA Production حقيقي على runtime 0.1.2.
-4. اختبار أن APK 0.1.2 تستقبل OTA فعليًا.
-5. Authenticated E2E الحقيقي: customer signup/login/order؛ merchant signup→onboarding→pending→approve→dashboard؛ driver docs→pending→approve→online→accept→delivered؛ admin approve/reject.
+1. تثبيت وتجربة APK 0.1.3 على جهاز حقيقي: العميل + الأدمن + التسجيل كتاجر ومندوب ورفع المستندات.
+2. التأكد أن versionCode 4 يتثبت فوق النسخة السابقة بدون حذف التطبيق؛ لو فشل نثبت Android signing دائم قبل أي توزيع واسع.
+3. إضافة `EXPO_TOKEN` وتشغيل أول OTA Production حقيقي على runtime 0.1.3.
+4. اختبار أن APK 0.1.3 تستقبل OTA فعليًا.
+5. Authenticated E2E الحقيقي: customer signup/login/order؛ merchant signup→docs→pending→approve→dashboard؛ driver signup→docs→pending→approve→online→accept→delivered؛ admin approve/reject.
 6. فحص RLS/RPC negative tests ضد IDOR/BOLA والتنافس على قبول الطلب.
-7. تحسين Merchant reports / Driver operations / Admin operations.
-8. تحسين map picker + camera capture.
+7. تحسين camera capture للمستندات + map picker.
+8. تحسين Merchant reports / Driver operations / Admin operations.
 9. عرض صورة/بيانات المندوب للعميل أثناء lifecycle المسموح.
 10. Network/offline UI + PWA final audit.
 11. Store hours UI + CSV + nearby distance + background driver location.
