@@ -3,8 +3,8 @@ import { createPrivateDocumentUrl } from './onboarding';
 
 export async function getPendingRoleApplications(){
   const [merchant,driver]=await Promise.all([
-    supabase.from('merchant_applications').select('id,applicant_id,business_name,phone,address,category,logo_url,latitude,longitude,status,created_at').eq('status','pending').order('created_at'),
-    supabase.from('driver_applications').select('id,applicant_id,full_name,phone,vehicle_type,transport_mode,motorcycle_type,profile_photo_url,driving_license_front_path,driving_license_back_path,vehicle_license_front_path,vehicle_license_back_path,status,created_at').eq('status','pending').order('created_at'),
+    supabase.from('merchant_applications').select('id,applicant_id,business_name,phone,address,category,logo_url,latitude,longitude,national_id_front_path,national_id_back_path,commercial_registration_path,tax_card_path,status,created_at').eq('status','pending').order('created_at'),
+    supabase.from('driver_applications').select('id,applicant_id,full_name,phone,vehicle_type,transport_mode,motorcycle_type,profile_photo_url,national_id_front_path,national_id_back_path,driving_license_front_path,driving_license_back_path,vehicle_license_front_path,vehicle_license_back_path,police_clearance_path,status,created_at').eq('status','pending').order('created_at'),
   ]);
   if(merchant.error)throw merchant.error;
   if(driver.error)throw driver.error;
