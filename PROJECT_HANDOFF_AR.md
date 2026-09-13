@@ -95,10 +95,17 @@
 
 ## 9) لوحة الإدارة
 - Control Center منفصلة تمامًا عن واجهة العميل.
-- KPIs + المستخدمون + المتاجر + الطلبات + طلبات الاعتماد + المستندات + الشكاوى/المشاكل + الحذف + المناطق + الإعدادات + الاشتراكات والعمولات + الإعلانات + مؤشرات البنية.
-- Signed URLs للمستندات الخاصة.
-- Approve/Reject للتاجر والمندوب.
-- تم إخفاء الـHeader التقني `admin/index` عن طريق admin nested stack + root stack config.
+- من 2026-09-13 تم إعادة تصميم الصفحة الرئيسية كـDashboard خفيفة ومحترفة بدل صفحة طويلة تجمع كل أدوات الإدارة.
+- الصفحة الرئيسية تعرض KPIs وتنبيهات تحتاج قرارًا فقط، ثم تنقل لأقسام منفصلة.
+- الأقسام الحالية:
+  - `/admin/applications` طلبات الاعتماد والمستندات.
+  - `/admin/operations` التشغيل والمستخدمون والمناطق والبلاغات والحذف والتدقيق.
+  - `/admin/commerce` الاشتراكات والعمولات وخدمات المتاجر والإعلانات.
+- الصفحات الفرعية تستخدم Header عربي وزر رجوع؛ الصفحة الرئيسية بدون Header تقني.
+- يوجد زر واضح `تبديل الحساب / تسجيل الخروج` في Dashboard الإدارة.
+- Dashboard يستخدم query خفيفة مستقلة `getAdminDashboardSnapshot()` بدل تحميل كل بيانات الإدارة عند كل فتح.
+- تم اختبار استعلام Snapshot تحت هوية الأدمن الفعلية: profiles/stores/orders/applications/issues/deletions كلها تعمل بدون RLS recursion.
+- Signed URLs للمستندات الخاصة وApprove/Reject للتاجر والمندوب مستمرة كما هي.
 
 ## 10) الاشتراكات والكاشير والعمولة
 - Merchant subscription required = false.
@@ -139,20 +146,19 @@
 - Splash يستخدم `brand-logo.png` ثم شاشة React branded.
 
 ## 15) نسخة Android الحالية — 2026-09-13
-- App version: **`0.1.4`**.
-- Android `versionCode = 5`.
-- Build source commit: `b27fceb3d9faddf8c732748c76bb73455b0dfc10`.
-- Latest full CI after regression guards: **run #282 ✅**
+- App version/runtime: **`0.1.4`**.
+- Android `versionCode = 6` لكي تتثبت النسخة الجديدة فوق build 5 مع الحفاظ على نفس OTA runtime.
+- Build source commit: `5d79eb0b50acdf370828a603ce5042b4e3bc7f4d`.
+- Latest full CI after admin navigation regression guard: **run #291 ✅**
   - Doctor ✅
   - Lint ✅
   - TypeScript ✅
   - Unit/Regression tests ✅
   - Web Export ✅
   - Playwright E2E ✅
-- Android APK: **run #195 ✅** Release APK + artifact upload.
+- Android APK: **run #202 ✅** Release APK + artifact upload.
 - Artifact: `talabatk-android-release-apk`.
-- 0.1.4 يحتوي على كل إصلاحات 0.1.3 + إخفاء `admin/index` + baseline جديد.
-- إصلاح لوحة الإدارة ودورة RLS وإصلاح private contacts **Server-side ومطبق حيًا**، لذلك يفيد حتى النسخة المثبتة 0.1.3 بعد إعادة فتحها.
+- هذه الـAPK تشمل Dashboard الإدارة الجديدة، الأقسام المنفصلة، Header عربي للصفحات الفرعية، زر تبديل الحساب، وكل إصلاحات RLS/Auth السابقة.
 
 ## 16) أشياء ممنوعة حاليًا
 - Minimum Order enforcement؛ الحد الأدنى يظل 0.
@@ -163,20 +169,19 @@
 - Coupon discounts at checkout.
 
 ## 17) المتبقي حسب الأولوية
-1. تجربة حساب الأدمن بعد إصلاح RLS الحي والتأكد من ظهور Control Center كامل.
-2. تجربة 0.1.4 على جهاز حقيقي، خصوصًا أن `admin/index` لم يعد ظاهرًا.
-3. تثبيت Android signing دائم موثق قبل التوزيع الواسع إذا ثبت أن أي Build لا يتثبت فوق السابقة.
-4. إضافة `EXPO_TOKEN` وتشغيل أول OTA Production حقيقي على runtime 0.1.4.
-5. اختبار أن 0.1.4 تستقبل OTA من داخل التطبيق فعلًا.
-6. Authenticated E2E الحقيقي end-to-end: customer order؛ merchant docs→approve→dashboard؛ driver docs→approve→online→claim→delivered؛ admin approve/reject.
-7. توسيع RLS/RPC negative tests ضد IDOR/BOLA والتنافس على قبول الطلب.
-8. تحسين camera capture للمستندات + map picker.
-9. تحسين Merchant reports / Driver operations / Admin operations.
-10. عرض بيانات المندوب للعميل أثناء lifecycle المسموح.
-11. Network/offline UI + PWA final audit.
-12. Store hours UI + CSV + nearby distance + background driver location.
-13. Supabase security/performance advisors ثم remediate.
-14. Live ads فقط بعد IDs الحقيقية والـconsent.
+1. تثبيت وتجربة Android build 6 فوق النسخة الحالية بدون حذف التطبيق، والتأكد من Dashboard الإدارة الجديدة والتنقل بين الأقسام.
+2. إضافة `EXPO_TOKEN` وتشغيل أول OTA Production حقيقي على runtime 0.1.4؛ بعد ذلك التعديلات JS/UI العادية لا تحتاج APK جديدة.
+3. اختبار أن runtime 0.1.4 تستقبل OTA من داخل التطبيق فعلًا.
+4. تثبيت Android signing دائم موثق قبل التوزيع الواسع إذا ظهر أي Build لا يتثبت فوق السابقة.
+5. Authenticated E2E الحقيقي end-to-end: customer order؛ merchant docs→approve→dashboard؛ driver docs→approve→online→claim→delivered؛ admin approve/reject.
+6. توسيع RLS/RPC negative tests ضد IDOR/BOLA والتنافس على قبول الطلب.
+7. تحسين camera capture للمستندات + map picker.
+8. تحسين Merchant reports / Driver operations / Admin operations.
+9. عرض بيانات المندوب للعميل أثناء lifecycle المسموح.
+10. Network/offline UI + PWA final audit.
+11. Store hours UI + CSV + nearby distance + background driver location.
+12. Supabase security/performance advisors ثم remediate.
+13. Live ads فقط بعد IDs الحقيقية والـconsent.
 
 ## 18) قاعدة الاستكمال
 إذا قال المستخدم `كمل`:
