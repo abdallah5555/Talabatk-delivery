@@ -59,7 +59,8 @@ export const adhkarSections:DhikrSection[]=[
 ];
 
 const KEY='talabatk:adhkar-reminders:v2';
-export type AdhkarReminderState={enabled:boolean;ids:string[];intervalMinutes:number};
+const SCHEDULE_VERSION=3;
+export type AdhkarReminderState={enabled:boolean;ids:string[];intervalMinutes:number;scheduleVersion?:number};
 const DEFAULT_INTERVAL=5;
 const reminderDhikr={
   title:'لا إله إلا الله وحده لا شريك له 🤲',
@@ -68,11 +69,11 @@ const reminderDhikr={
 export async function getAdhkarReminderState():Promise<AdhkarReminderState>{
   try{
     const raw=await AsyncStorage.getItem(KEY);
-    if(!raw)return{enabled:false,ids:[],intervalMinutes:DEFAULT_INTERVAL};
+    if(!raw)return{enabled:false,ids:[],intervalMinutes:DEFAULT_INTERVAL,scheduleVersion:SCHEDULE_VERSION};
     const parsed=JSON.parse(raw) as Partial<AdhkarReminderState>;
     const interval=Math.min(15,Math.max(1,Number(parsed.intervalMinutes)||DEFAULT_INTERVAL));
-    return{enabled:Boolean(parsed.enabled),ids:Array.isArray(parsed.ids)?parsed.ids:[],intervalMinutes:interval};
-  }catch{return{enabled:false,ids:[],intervalMinutes:DEFAULT_INTERVAL};}
+    return{enabled:Boolean(parsed.enabled),ids:Array.isArray(parsed.ids)?parsed.ids:[],intervalMinutes:interval,scheduleVersion:Number(parsed.scheduleVersion)||0};
+  }catch{return{enabled:false,ids:[],intervalMinutes:DEFAULT_INTERVAL,scheduleVersion:SCHEDULE_VERSION};}
 }
 
 export async function enableAdhkarReminders(intervalMinutes:number){
@@ -87,13 +88,20 @@ export async function enableAdhkarReminders(intervalMinutes:number){
     content:{title:reminderDhikr.title,body:reminderDhikr.body,data:{kind:'adhkar'}},
     trigger:{type:Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,seconds:interval*60,repeats:true,channelId:'adhkar'},
   });
-  const saved={enabled:true,ids:[id],intervalMinutes:interval};
+  const saved={enabled:true,ids:[id],intervalMinutes:interval,scheduleVersion:SCHEDULE_VERSION};
   await AsyncStorage.setItem(KEY,JSON.stringify(saved));
   return saved;
+}
+
+export async function refreshAdhkarReminderScheduleIfNeeded(){
+  if(Platform.OS==='web')return;
+  const saved=await getAdhkarReminderState();
+  if(!saved.enabled||saved.scheduleVersion===SCHEDULE_VERSION)return;
+  await enableAdhkarReminders(saved.intervalMinutes);
 }
 
 export async function disableAdhkarReminders(){
   const saved=await getAdhkarReminderState();
   await Promise.all(saved.ids.map(id=>Notifications.cancelScheduledNotificationAsync(id).catch(()=>undefined)));
-  await AsyncStorage.setItem(KEY,JSON.stringify({enabled:false,ids:[],intervalMinutes:saved.intervalMinutes||DEFAULT_INTERVAL}));
+  await AsyncStorage.setItem(KEY,JSON.stringify({enabled:false,ids:[],intervalMinutes:saved.intervalMinutes||DEFAULT_INTERVAL,scheduleVersion:SCHEDULE_VERSION}));
 }
