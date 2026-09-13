@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Button, Card, Field, Muted, PasswordField, Title, colors } from '@/src/components/ui';
@@ -8,6 +8,11 @@ export default function Login() {
   const [phone,setPhone]=useState('');
   const [password,setPassword]=useState('');
   const [busy,setBusy]=useState(false);
+
+  useEffect(()=>{
+    if(!phone.trim()&&password) setPassword('');
+  },[phone,password]);
+
   async function submit(){
     setBusy(true);
     try{
