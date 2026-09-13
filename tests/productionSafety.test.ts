@@ -162,4 +162,10 @@ describe('production safety gates',()=>{
     expect(index).toContain('<LoadingBrand/>');
     expect(config.expo.splash.image).toBe('./assets/app-icon.png');
   });
+
+  it('binds standalone Android builds to the production OTA channel',()=>{
+    const config=JSON.parse(text('app.json'));
+    expect(config.expo.updates.requestHeaders?.['expo-channel-name']).toBe('production');
+    expect(config.expo.runtimeVersion.policy).toBe('appVersion');
+  });
 });
