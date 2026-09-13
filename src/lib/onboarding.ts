@@ -52,10 +52,15 @@ export async function submitMerchantOnboarding(input: {
   latitude: number;
   longitude: number;
   logoUrl: string;
+  nationalIdFrontPath: string;
+  nationalIdBackPath: string;
+  commercialRegistrationPath: string;
+  taxCardPath?: string | null;
 }) {
   const user = await currentUser();
   const profile = await getOnboardingIdentity();
   if (!profile.phone) throw new Error('رقم الهاتف غير موجود في الحساب.');
+  if (!input.nationalIdFrontPath || !input.nationalIdBackPath || !input.commercialRegistrationPath) throw new Error('صور الهوية والسجل التجاري مطلوبة للمراجعة.');
   const { data: pending } = await supabase.from('merchant_applications').select('id').eq('applicant_id', user.id).eq('status', 'pending').maybeSingle();
   if (pending) throw new Error('عندك طلب تاجر قيد المراجعة بالفعل.');
   const { data, error } = await supabase.from('merchant_applications').insert({
@@ -67,6 +72,10 @@ export async function submitMerchantOnboarding(input: {
     logo_url: input.logoUrl,
     latitude: input.latitude,
     longitude: input.longitude,
+    national_id_front_path: input.nationalIdFrontPath,
+    national_id_back_path: input.nationalIdBackPath,
+    commercial_registration_path: input.commercialRegistrationPath,
+    tax_card_path: input.taxCardPath ?? null,
     status: 'pending',
   }).select().single();
   if (error) throw error;
@@ -77,14 +86,18 @@ export async function submitDriverOnboarding(input: {
   transportMode: 'motorcycle' | 'bicycle';
   motorcycleType?: string;
   profilePhotoUrl: string;
+  nationalIdFrontPath: string;
+  nationalIdBackPath: string;
   drivingLicenseFrontPath?: string | null;
   drivingLicenseBackPath?: string | null;
   vehicleLicenseFrontPath?: string | null;
   vehicleLicenseBackPath?: string | null;
+  policeClearancePath?: string | null;
 }) {
   const user = await currentUser();
   const profile = await getOnboardingIdentity();
   if (!profile.phone) throw new Error('رقم الهاتف غير موجود في الحساب.');
+  if (!input.nationalIdFrontPath || !input.nationalIdBackPath) throw new Error('صور بطاقة الرقم القومي وش وظهر مطلوبة.');
   if (input.transportMode === 'motorcycle') {
     if (!input.motorcycleType?.trim()) throw new Error('اكتب نوع/موديل الموتوسيكل.');
     if (!input.drivingLicenseFrontPath || !input.drivingLicenseBackPath || !input.vehicleLicenseFrontPath || !input.vehicleLicenseBackPath) throw new Error('صور رخصة القيادة والموتوسيكل وش وظهر مطلوبة.');
@@ -100,10 +113,13 @@ export async function submitDriverOnboarding(input: {
     transport_mode: input.transportMode,
     motorcycle_type: input.transportMode === 'motorcycle' ? input.motorcycleType!.trim() : null,
     profile_photo_url: input.profilePhotoUrl,
+    national_id_front_path: input.nationalIdFrontPath,
+    national_id_back_path: input.nationalIdBackPath,
     driving_license_front_path: input.drivingLicenseFrontPath ?? null,
     driving_license_back_path: input.drivingLicenseBackPath ?? null,
     vehicle_license_front_path: input.vehicleLicenseFrontPath ?? null,
     vehicle_license_back_path: input.vehicleLicenseBackPath ?? null,
+    police_clearance_path: input.policeClearancePath ?? null,
     status: 'pending',
   }).select().single();
   if (error) throw error;
