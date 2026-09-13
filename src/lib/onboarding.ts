@@ -57,28 +57,20 @@ export async function submitMerchantOnboarding(input: {
   commercialRegistrationPath: string;
   taxCardPath?: string | null;
 }) {
-  const user = await currentUser();
-  const profile = await getOnboardingIdentity();
-  if (!profile.phone) throw new Error('رقم الهاتف غير موجود في الحساب.');
-  if (!input.nationalIdFrontPath || !input.nationalIdBackPath || !input.commercialRegistrationPath) throw new Error('صور الهوية والسجل التجاري مطلوبة للمراجعة.');
-  const { data: pending } = await supabase.from('merchant_applications').select('id').eq('applicant_id', user.id).eq('status', 'pending').maybeSingle();
-  if (pending) throw new Error('عندك طلب تاجر قيد المراجعة بالفعل.');
-  const { data, error } = await supabase.from('merchant_applications').insert({
-    applicant_id: user.id,
-    business_name: input.businessName.trim(),
-    phone: profile.phone,
-    address: input.address.trim(),
-    category: input.category.trim() || 'أخرى',
-    logo_url: input.logoUrl,
-    latitude: input.latitude,
-    longitude: input.longitude,
-    national_id_front_path: input.nationalIdFrontPath,
-    national_id_back_path: input.nationalIdBackPath,
-    commercial_registration_path: input.commercialRegistrationPath,
-    tax_card_path: input.taxCardPath ?? null,
-    status: 'pending',
-  }).select().single();
-  if (error) throw error;
+  await currentUser();
+  const { data, error } = await supabase.rpc('submit_merchant_application',{
+    p_business_name:input.businessName.trim(),
+    p_category:input.category.trim(),
+    p_address:input.address.trim(),
+    p_latitude:input.latitude,
+    p_longitude:input.longitude,
+    p_logo_url:input.logoUrl,
+    p_national_id_front_path:input.nationalIdFrontPath,
+    p_national_id_back_path:input.nationalIdBackPath,
+    p_commercial_registration_path:input.commercialRegistrationPath,
+    p_tax_card_path:input.taxCardPath??null,
+  });
+  if(error)throw new Error(error.message||'تعذر إرسال طلب التاجر.');
   return data;
 }
 
@@ -94,35 +86,20 @@ export async function submitDriverOnboarding(input: {
   vehicleLicenseBackPath?: string | null;
   policeClearancePath?: string | null;
 }) {
-  const user = await currentUser();
-  const profile = await getOnboardingIdentity();
-  if (!profile.phone) throw new Error('رقم الهاتف غير موجود في الحساب.');
-  if (!input.nationalIdFrontPath || !input.nationalIdBackPath) throw new Error('صور بطاقة الرقم القومي وش وظهر مطلوبة.');
-  if (input.transportMode === 'motorcycle') {
-    if (!input.motorcycleType?.trim()) throw new Error('اكتب نوع/موديل الموتوسيكل.');
-    if (!input.drivingLicenseFrontPath || !input.drivingLicenseBackPath || !input.vehicleLicenseFrontPath || !input.vehicleLicenseBackPath) throw new Error('صور رخصة القيادة والموتوسيكل وش وظهر مطلوبة.');
-  }
-  const { data: pending } = await supabase.from('driver_applications').select('id').eq('applicant_id', user.id).eq('status', 'pending').maybeSingle();
-  if (pending) throw new Error('عندك طلب مندوب قيد المراجعة بالفعل.');
-  const vehicleType = input.transportMode === 'bicycle' ? 'دراجة' : input.motorcycleType!.trim();
-  const { data, error } = await supabase.from('driver_applications').insert({
-    applicant_id: user.id,
-    full_name: profile.full_name,
-    phone: profile.phone,
-    vehicle_type: vehicleType,
-    transport_mode: input.transportMode,
-    motorcycle_type: input.transportMode === 'motorcycle' ? input.motorcycleType!.trim() : null,
-    profile_photo_url: input.profilePhotoUrl,
-    national_id_front_path: input.nationalIdFrontPath,
-    national_id_back_path: input.nationalIdBackPath,
-    driving_license_front_path: input.drivingLicenseFrontPath ?? null,
-    driving_license_back_path: input.drivingLicenseBackPath ?? null,
-    vehicle_license_front_path: input.vehicleLicenseFrontPath ?? null,
-    vehicle_license_back_path: input.vehicleLicenseBackPath ?? null,
-    police_clearance_path: input.policeClearancePath ?? null,
-    status: 'pending',
-  }).select().single();
-  if (error) throw error;
+  await currentUser();
+  const { data, error } = await supabase.rpc('submit_driver_application',{
+    p_transport_mode:input.transportMode,
+    p_motorcycle_type:input.motorcycleType??'',
+    p_profile_photo_url:input.profilePhotoUrl,
+    p_national_id_front_path:input.nationalIdFrontPath,
+    p_national_id_back_path:input.nationalIdBackPath,
+    p_driving_license_front_path:input.drivingLicenseFrontPath??null,
+    p_driving_license_back_path:input.drivingLicenseBackPath??null,
+    p_vehicle_license_front_path:input.vehicleLicenseFrontPath??null,
+    p_vehicle_license_back_path:input.vehicleLicenseBackPath??null,
+    p_police_clearance_path:input.policeClearancePath??null,
+  });
+  if(error)throw new Error(error.message||'تعذر إرسال طلب المندوب.');
   return data;
 }
 
