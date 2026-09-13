@@ -14,7 +14,6 @@ export async function requiresInteractiveReauth(){
   const value=await authStorage.getItem(REAUTH_AT_KEY);
   const timestamp=Number(value);
   if(!value||!Number.isFinite(timestamp)){
-    // Give already-installed sessions a fresh 72h window after this upgrade.
     await markInteractiveAuth();
     return false;
   }
@@ -68,6 +67,19 @@ export async function signInPhonePassword(phone:string,password:string){
     }
   }
   throw new Error('رقم الهاتف أو كلمة المرور غير صحيحة.');
+}
+
+export async function changePassword(currentPassword:string,newPassword:string){
+  if(currentPassword.length<8)throw new Error('اكتب كلمة المرور الحالية بشكل صحيح.');
+  if(newPassword.length<8||newPassword.length>72)throw new Error('كلمة المرور الجديدة لازم تكون من 8 إلى 72 حرفًا.');
+  if(currentPassword===newPassword)throw new Error('اختار كلمة مرور جديدة مختلفة عن الحالية.');
+  const {data:{user}}=await supabase.auth.getUser();
+  if(!user?.email)throw new Error('تعذر تحديد حساب تسجيل الدخول.');
+  const {error:verifyError}=await supabase.auth.signInWithPassword({email:user.email,password:currentPassword});
+  if(verifyError)throw new Error('كلمة المرور الحالية غير صحيحة.');
+  const {error}=await supabase.auth.updateUser({password:newPassword});
+  if(error)throw new Error('تعذر تغيير كلمة المرور حاليًا. حاول مرة أخرى.');
+  await markInteractiveAuth();
 }
 
 export async function signUpPhonePassword(input:{name:string;phone:string;password:string;kind:RegistrationKind}){
