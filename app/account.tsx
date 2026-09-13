@@ -15,13 +15,13 @@ const roleRoute:Record<AppRole,string>={customer:'/home',merchant:'/role/merchan
 
 export default function Account(){
   const {session}=useAuth();
-  const roles=useQuery({queryKey:['roles'],queryFn:getMyRoles});
-  const profile=useQuery({queryKey:['profile-summary',session?.user.id],queryFn:getOnboardingIdentity});
+  const roles=useQuery({queryKey:['roles',session?.user.id],queryFn:getMyRoles,enabled:Boolean(session?.user.id)});
+  const profile=useQuery({queryKey:['profile-summary',session?.user.id],queryFn:getOnboardingIdentity,enabled:Boolean(session?.user.id),retry:2,staleTime:30_000});
   const list=(roles.data??[]) as AppRole[];
   const metadataName=typeof session?.user.user_metadata?.full_name==='string'?session.user.user_metadata.full_name.trim():'';
   const metadataPhone=typeof session?.user.user_metadata?.phone==='string'?session.user.user_metadata.phone.trim():'';
-  const name=profile.data?.full_name||metadataName||'مستخدم طلباتك';
   const phone=profile.data?.phone||metadataPhone||'';
+  const name=profile.data?.full_name||metadataName||phone||'حساب طلباتك';
   return <ScrollView style={s.page} contentContainerStyle={s.content}>
     <View style={s.hero}><View style={s.profileRow}>{profile.data?.avatar_url?<Image source={{uri:profile.data.avatar_url}} style={s.avatar} contentFit="cover"/>:<View style={s.avatarPlaceholder}><Text style={s.avatarLetter}>{name[0]}</Text></View>}<View style={s.flex}><Text style={s.name}>{name}</Text><Text style={s.phone}>{phone}</Text><Text style={s.heroHint}>أنت فاتح الحساب ده حاليًا. اختار الخدمة أو وضع الحساب اللي محتاجه.</Text></View></View></View>
 
