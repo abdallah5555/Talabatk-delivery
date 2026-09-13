@@ -2,7 +2,7 @@
   "expo": {
     "name": "طلباتك دليفري",
     "slug": "talabatk-delivery",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "runtimeVersion": { "policy": "appVersion" },
     "updates": {
       "url": "https://u.expo.dev/1a617642-b1c4-4a68-8fa5-98c0ad3c7911",
@@ -35,7 +35,7 @@
     ],
     "android": {
       "package": "com.talabatk.delivery",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
