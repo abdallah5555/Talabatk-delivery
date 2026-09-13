@@ -61,6 +61,10 @@ export const adhkarSections:DhikrSection[]=[
 const KEY='talabatk:adhkar-reminders:v2';
 export type AdhkarReminderState={enabled:boolean;ids:string[];intervalMinutes:number};
 const DEFAULT_INTERVAL=5;
+const reminderDhikr={
+  title:'لا إله إلا الله وحده لا شريك له 🤲',
+  body:'له الملك وله الحمد وهو على كل شيء قدير.',
+};
 export async function getAdhkarReminderState():Promise<AdhkarReminderState>{
   try{
     const raw=await AsyncStorage.getItem(KEY);
@@ -80,7 +84,7 @@ export async function enableAdhkarReminders(intervalMinutes:number){
   if(!permission.granted) throw new Error('فعّل إذن الإشعارات حتى نقدر نفكرك بالأذكار.');
   await disableAdhkarReminders();
   const id=await Notifications.scheduleNotificationAsync({
-    content:{title:'ذكر بسيط 🤲',body:'خد لحظة ذكر هادية من يومك.',data:{kind:'adhkar'}},
+    content:{title:reminderDhikr.title,body:reminderDhikr.body,data:{kind:'adhkar'}},
     trigger:{type:Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,seconds:interval*60,repeats:true,channelId:'adhkar'},
   });
   const saved={enabled:true,ids:[id],intervalMinutes:interval};
