@@ -10,6 +10,17 @@ test('login page is Arabic role-aware marketing UI',async({page})=>{
   await expect(page.locator('body')).not.toContainText(/بدون sms|بدون بريد|حساب واحد يجمع|supabase|architecture/i);
 });
 
+test('clearing the phone also clears the password',async({page})=>{
+  await page.goto('/login');
+  const phone=page.getByRole('textbox',{name:'رقم الهاتف'});
+  const password=page.getByRole('textbox',{name:'كلمة المرور'});
+  await phone.fill('01012345678');
+  await password.fill('abcdefgh');
+  await expect(password).toHaveValue('abcdefgh');
+  await phone.fill('');
+  await expect(password).toHaveValue('');
+});
+
 test('signup offers customer merchant and driver with password confirmation',async({page})=>{
   await page.goto('/signup');
   await expect(page.getByText('عميل',{exact:true})).toBeVisible();
