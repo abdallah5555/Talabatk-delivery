@@ -32,5 +32,12 @@ jobs:
           BACKEND_TEST_EMAIL: ${{ secrets.BACKEND_TEST_EMAIL }}
           BACKEND_TEST_PASSWORD: ${{ secrets.BACKEND_TEST_PASSWORD }}
       - run: npm run export:web
+      - name: Upload web export
+        uses: actions/upload-artifact@v4
+        with:
+          name: talabatk-web-dist
+          path: dist
+          if-no-files-found: error
+          retention-days: 7
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
