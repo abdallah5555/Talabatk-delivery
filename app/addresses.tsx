@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
-import { Camera, CircleLayer, Map, ShapeSource } from '@maplibre/maplibre-react-native';
+import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
 import { deleteAddress, getAddresses, saveAddress } from '@/src/lib/features';
 import { Button, Card, Field, Muted, Title, colors } from '@/src/components/ui';
 
@@ -23,6 +23,7 @@ export default function Addresses() {
   const [notice,setNotice]=useState<{type:'ok'|'error';text:string}|null>(null);
   const initial=useMemo<[number,number]>(()=>[31.2357,30.0444],[]);
   const center=point?[point.longitude,point.latitude] as [number,number]:initial;
+  const selectedFeature=point?({type:'Feature',properties:{},geometry:{type:'Point',coordinates:[point.longitude,point.latitude]}} as const):null;
 
   async function locateMe(){
     setNotice(null);
@@ -65,7 +66,7 @@ export default function Addresses() {
       {label==='أخرى'?<Field value={customLabel} onChangeText={setCustomLabel} placeholder="مثلاً النادي أو بيت العائلة" accessibilityLabel="اسم العنوان"/>:null}
       <Field value={address} onChangeText={setAddress} placeholder="العنوان بالتفصيل — الشارع، العمارة، علامة مميزة" accessibilityLabel="العنوان بالتفصيل" multiline/>
       <View style={s.two}><View style={s.flex}><Button title={point?'✓ الموقع محدد':'تحديد على الخريطة'} onPress={()=>setShowMap(v=>!v)}/></View><View style={s.flex}><Button title="موقعي الحالي" onPress={()=>void locateMe()}/></View></View>
-      {showMap?<View style={s.mapWrap}><Map mapStyle={mapStyle} style={s.map} attribution logo={false} onPress={choosePoint}><Camera key={`${center[0]}:${center[1]}`} initialViewState={{center,zoom:point?15:10}}/>{point?<ShapeSource id="selected-address" shape={{type:'Feature',properties:{},geometry:{type:'Point',coordinates:[point.longitude,point.latitude]}}}><CircleLayer id="selected-address-dot" style={{circleRadius:9,circleColor:colors.primary,circleStrokeWidth:4,circleStrokeColor:'#ffffff'}}/></ShapeSource>:null}</Map><Muted>اضغط مرة واحدة على المكان المطلوب. العلامة البرتقالي هتظهر من غير فتح عناصر Native فوق الخريطة.</Muted></View>:null}
+      {showMap?<View style={s.mapWrap}><Map mapStyle={mapStyle} style={s.map} attribution logo={false} onPress={choosePoint}><Camera key={`${center[0]}:${center[1]}`} initialViewState={{center,zoom:point?15:10}}/>{selectedFeature?<GeoJSONSource id="selected-address" data={selectedFeature}><Layer id="selected-address-dot" type="circle" style={{circleRadius:9,circleColor:colors.primary,circleStrokeWidth:4,circleStrokeColor:'#ffffff'}}/></GeoJSONSource>:null}</Map><Muted>اضغط مرة واحدة على المكان المطلوب. العلامة البرتقالي هتظهر من غير فتح عناصر Native فوق الخريطة.</Muted></View>:null}
       <Pressable onPress={()=>setDefault(v=>!v)} style={s.defaultRow}><View style={[s.check,isDefault&&s.checkOn]}><Text style={s.checkText}>{isDefault?'✓':''}</Text></View><Text style={s.defaultText}>اجعله العنوان الافتراضي</Text></Pressable>
       <Button title={busy ? 'جاري الحفظ…' : 'حفظ العنوان'} onPress={add} disabled={busy || address.trim().length < 5} />
     </Card>
