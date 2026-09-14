@@ -23,7 +23,7 @@ jobs:
   publish:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
@@ -37,6 +37,16 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: cp .env.example .env
+
+      - name: Verify manually requested OTA before publishing
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          npm run doctor
+          npm run lint
+          npm run typecheck
+          npm run test
+          npm run export:web
+
       - name: Verify Expo authentication secret exists
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
