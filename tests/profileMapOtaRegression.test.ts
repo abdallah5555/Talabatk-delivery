@@ -4,10 +4,10 @@ import { readFileSync } from 'node:fs';
 const text=(path:string)=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
 describe('profile, map and OTA stability regressions',()=>{
-  it('keeps OTA manual-only and isolates build 11 on a new runtime',()=>{
+  it('keeps OTA manual-only on the current production runtime',()=>{
     const app=JSON.parse(text('app.json')).expo;
-    expect(app.version).toBe('0.1.5');
-    expect(app.android.versionCode).toBe(11);
+    expect(app.version).toBe('0.1.7');
+    expect(app.android.versionCode).toBe(13);
     expect(app.updates.checkAutomatically).toBe('NEVER');
     expect(text('src/components/OtaUpdateBanner.tsx')).not.toContain('reloadAsync');
   });
