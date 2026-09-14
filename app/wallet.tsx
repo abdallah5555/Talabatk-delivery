@@ -4,7 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, Muted, Title, colors } from '@/src/components/ui';
 import { getMyFinanceWallets, getWalletEntries } from '@/src/lib/finance';
 
-const labels:Record<string,string>={platform_commission:'عمولة المنصة',merchant_commission:'عمولة التاجر',fleet_platform_commission:'عمولة الشركة للمنصة',fleet_driver_platform_commission:'عمولة منصة على المندوب',topup:'شحن محفظة',admin_adjustment:'تعديل إداري',reward_credit:'رصيد مكافأة',reversal:'عكس حركة'};
+const labels:Record<string,string>={platform_commission:'عمولة المنصة',merchant_commission:'عمولة التاجر',fleet_platform_commission:'عمولة الشركة للمنصة',fleet_driver_platform_commission:'عمولة منصة على المندوب',delivery_subsidy_credit:'رصيد توصيل مدفوع من طلباتك',topup:'شحن محفظة',admin_adjustment:'تعديل إداري',reward_credit:'رصيد مكافأة',reversal:'عكس حركة'};
+const explain:Record<string,string>={
+  driver:'دي محفظة شغلك كمندوب. لو العميل استخدم مكافأة توصيل مجاني، حق التوصيل بيتسجل لك كرَصيد موجب. لو عليك مديونية يقللها، ولو فضل رصيد موجب بيتخصم منه أي عمولات مستحقة في العمليات الجاية.',
+  merchant:'دي محفظة نشاطك كتاجر. العمولات أو التسويات الخاصة بمتجرك بتظهر هنا، والرصيد السالب معناه مديونية مستحقة على المتجر.',
+  fleet:'دي محفظة الشركة. عمولات الشركة والتسويات الخاصة بمناديبها بتظهر هنا، والرصيد السالب معناه مديونية مستحقة على الشركة.',
+};
 
 export default function Wallet(){
   const wallets=useQuery({queryKey:['finance-wallets'],queryFn:getMyFinanceWallets,refetchInterval:30_000});
@@ -14,10 +19,10 @@ export default function Wallet(){
   if(wallets.isLoading)return <View style={s.center}><Muted>جاري تحميل المحفظة…</Muted></View>;
   return <ScrollView style={s.page} contentContainerStyle={s.content}>
     <Title>المحفظة والمحاسبة</Title>
-    <Card><Text style={s.explain}>الرصيد الموجب = ليك رصيد/تسوية، والرصد السالب = مديونية مستحقة. لو الإدارة فعّلت حد المديونية ووصلتله، العمليات الجديدة بتقف لحد الشحن أو التسوية.</Text></Card>
     {(wallets.data??[]).length>1?<View style={s.tabs}>{wallets.data!.map(w=><Pressable key={w.wallet_id} onPress={()=>setSelected(w.wallet_id)} style={[s.tab,active?.wallet_id===w.wallet_id&&s.tabActive]}><Text style={[s.tabText,active?.wallet_id===w.wallet_id&&s.tabTextActive]}>{w.owner_label}</Text></Pressable>)}</View>:null}
-    {!active?<Card><Muted>لسه مفيش محفظة مرتبطة بحسابك. بتتعمل تلقائي أول ما يبقى عندك نشاط كتاجر أو مندوب أو مدير شركة.</Muted></Card>:<>
-      <View style={[s.hero,active.blocked&&s.heroBlocked]}><Text style={s.heroLabel}>{active.owner_label}</Text><Text style={s.balance}>{active.balance.toFixed(2)} ج</Text><Text style={s.heroHint}>{active.enforcement_enabled?`حد المديونية: -${active.debt_limit.toFixed(2)} ج`:'حد المديونية غير مفعّل حاليًا'}</Text><View style={[s.status,active.blocked?s.statusBlocked:s.statusOk]}><Text style={[s.statusText,active.blocked&&s.statusTextBlocked]}>{active.blocked?'موقوف بسبب المديونية':'الحساب المالي سليم'}</Text></View></View>
+    {!active?<Card><Muted>لسه مفيش محفظة مرتبطة بحساب الشغل ده.</Muted></Card>:<>
+      <Card><Text style={s.explain}>{explain[active.owner_kind]}</Text></Card>
+      <View style={[s.hero,active.blocked&&s.heroBlocked]}><Text style={s.heroLabel}>{active.owner_label}</Text><Text style={s.balance}>{active.balance.toFixed(2)} ج</Text><Text style={s.heroHint}>{active.balance>0?'رصيد متاح للتسوية مع الحركات القادمة':active.enforcement_enabled?`حد المديونية: -${active.debt_limit.toFixed(2)} ج`:'رصيد الحساب الحالي'}</Text><View style={[s.status,active.blocked?s.statusBlocked:s.statusOk]}><Text style={[s.statusText,active.blocked&&s.statusTextBlocked]}>{active.blocked?'موقوف بسبب المديونية':'الحساب المالي سليم'}</Text></View></View>
       <Text style={s.section}>آخر الحركات</Text>
       {(entries.data??[]).length===0?<Card><Muted>مفيش حركات مالية لسه.</Muted></Card>:(entries.data??[]).map(e=><Card key={e.id}><View style={s.row}><View style={s.flex}><Text style={s.entryTitle}>{labels[e.entry_type]??e.entry_type}</Text><Muted>{e.memo||'بدون ملاحظة'} • {new Date(e.created_at).toLocaleString('ar-EG')}</Muted></View><Text style={[s.amount,e.amount<0&&s.amountNegative]}>{e.amount>0?'+':''}{e.amount.toFixed(2)} ج</Text></View></Card>)}
     </>}
