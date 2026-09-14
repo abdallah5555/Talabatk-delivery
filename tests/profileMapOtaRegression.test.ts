@@ -12,10 +12,10 @@ describe('profile, map and OTA stability regressions',()=>{
     expect(text('src/components/OtaUpdateBanner.tsx')).not.toContain('reloadAsync');
   });
 
-  it('uses a render-safe map layer instead of ViewAnnotation for address selection',()=>{
+  it('uses a render-safe MapLibre v11 layer instead of ViewAnnotation for address selection',()=>{
     const addresses=text('app/addresses.tsx');
-    expect(addresses).toContain('ShapeSource');
-    expect(addresses).toContain('CircleLayer');
+    expect(addresses).toContain('GeoJSONSource');
+    expect(addresses).toContain('type="circle"');
     expect(addresses).not.toContain('ViewAnnotation');
     expect(addresses).not.toContain('flyTo');
   });
