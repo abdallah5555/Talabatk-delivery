@@ -25,6 +25,7 @@ export default function RootLayout() {
             <Stack.Screen name="home" options={{ headerShown: false }} />
             <Stack.Screen name="admin" options={{ headerShown: false }} />
             <Stack.Screen name="account" options={{ title:'حسابي' }} />
+            <Stack.Screen name="profile" options={{ title:'ملفي الشخصي' }} />
             <Stack.Screen name="applications" options={{ title:'الانضمام للعمل' }} />
             <Stack.Screen name="onboarding" options={{ title:'استكمال البيانات' }} />
             <Stack.Screen name="adhkar" options={{ title:'الأذكار' }} />
