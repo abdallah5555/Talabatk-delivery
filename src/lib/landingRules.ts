@@ -1,4 +1,4 @@
-export type LandingRoute = '/admin' | '/role/merchant' | '/role/driver' | '/pending-approval' | '/onboarding' | '/home';
+export type LandingRoute = '/admin' | '/fleet' | '/role/merchant' | '/role/driver' | '/pending-approval' | '/onboarding' | '/home';
 export type PendingApproval = { merchant: boolean; driver: boolean };
 export type RegistrationKind = 'customer' | 'merchant' | 'driver' | null;
 
