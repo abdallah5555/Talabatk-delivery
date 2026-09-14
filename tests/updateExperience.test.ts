@@ -14,13 +14,17 @@ describe('update and reminder regressions',()=>{
     expect(ota).not.toContain('reloadScreenOptions');
   });
 
-  it('refreshes old adhkar schedules after an OTA so legacy notification text disappears',()=>{
+  it('rotates all adhkar and rebuilds stale native schedules instead of repeating one text',()=>{
     const adhkar=text('src/lib/adhkar.ts');
     const layout=text('app/_layout.tsx');
-    expect(adhkar).toContain('SCHEDULE_VERSION=3');
-    expect(adhkar).toContain('refreshAdhkarReminderScheduleIfNeeded');
-    expect(adhkar).toContain('seconds:interval*60');
-    expect(adhkar).toContain('لا إله إلا الله وحده لا شريك له');
+    expect(adhkar).toContain('SCHEDULE_VERSION=4');
+    expect(adhkar).toContain('adhkarReminderCycle');
+    expect(adhkar).toContain('getAllScheduledNotificationsAsync');
+    expect(adhkar).toContain("request.content.data?.kind==='adhkar'");
+    expect(adhkar).toContain('SchedulableTriggerInputTypes.DATE');
+    expect(adhkar).toContain('scheduleRotatingBatch');
+    expect(adhkar).not.toContain('const reminderDhikr=');
+    expect(layout).toContain('AppState.addEventListener');
     expect(layout).toContain('refreshAdhkarReminderScheduleIfNeeded');
   });
 
