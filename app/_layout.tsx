@@ -24,6 +24,8 @@ export default function RootLayout() {
             <Stack.Screen name="signup" options={{ headerShown: false }} />
             <Stack.Screen name="home" options={{ headerShown: false }} />
             <Stack.Screen name="admin" options={{ headerShown: false }} />
+            <Stack.Screen name="search" options={{ title:'البحث الشامل' }} />
+            <Stack.Screen name="assistant" options={{ title:'مساعد طلباتك' }} />
             <Stack.Screen name="account" options={{ title:'حسابي' }} />
             <Stack.Screen name="profile" options={{ title:'ملفي الشخصي' }} />
             <Stack.Screen name="applications" options={{ title:'الانضمام للعمل' }} />
