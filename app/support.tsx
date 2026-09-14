@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getComplaints, submitComplaint } from '@/src/lib/features';
 import { getMyOrders } from '@/src/lib/api';
-import { Button, Card, Field, Muted, Title, colors } from '@/src/components/ui';
+import { Button, Card, Field, Muted, colors } from '@/src/components/ui';
 
 const ISSUE_TYPES=[
   {key:'missing',label:'منتج ناقص',subject:'منتج ناقص من الطلب',hint:'اكتب اسم المنتج الناقص والكمية.'},
