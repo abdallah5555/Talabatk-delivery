@@ -25,17 +25,17 @@ export async function getMyRoles(): Promise<Role[]> {
 export async function getMyOrders(): Promise<Order[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
-  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,scheduled_for,created_at').eq('customer_id', user.id).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,estimated_minutes,scheduled_for,created_at').eq('customer_id', user.id).order('created_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []).map((row) => ({ ...row, subtotal: Number(row.subtotal), delivery_fee: Number(row.delivery_fee), total: Number(row.total) })) as Order[];
+  return (data ?? []).map((row) => ({ ...row, subtotal: Number(row.subtotal), delivery_fee: Number(row.delivery_fee), total: Number(row.total), estimated_minutes: row.estimated_minutes == null ? null : Number(row.estimated_minutes) })) as Order[];
 }
 
 export async function getMyOrder(orderId: string): Promise<Order> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('يجب تسجيل الدخول');
-  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,scheduled_for,created_at').eq('id', orderId).eq('customer_id', user.id).single();
+  const { data, error } = await supabase.from('orders').select('id,customer_id,store_id,driver_id,status,subtotal,delivery_fee,total,payment_method,delivery_address,customer_note,estimated_minutes,scheduled_for,created_at').eq('id', orderId).eq('customer_id', user.id).single();
   if (error) throw error;
-  return { ...data, subtotal: Number(data.subtotal), delivery_fee: Number(data.delivery_fee), total: Number(data.total) } as Order;
+  return { ...data, subtotal: Number(data.subtotal), delivery_fee: Number(data.delivery_fee), total: Number(data.total), estimated_minutes: data.estimated_minutes == null ? null : Number(data.estimated_minutes) } as Order;
 }
 
 export async function getOrderTimeline(orderId: string) {
