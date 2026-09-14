@@ -26,7 +26,7 @@ export default function AdminDashboard(){
     <View style={s.hero}>
       <View style={s.heroTop}><View style={s.liveDot}/><Text style={s.kicker}>ADMIN CONTROL CENTER</Text></View>
       <Text style={s.heroTitle}>لوحة قيادة طلباتك</Text>
-      <Text style={s.heroText}>مركز قيادة للمنصة كاملة: تشغيل، مستخدمين، شركات، محافظ، عمولات، نقاط، جوائز، إعلانات واعتمادات — مع فصل صلاحيات الشركات عن أدمن المنصة.</Text>
+      <Text style={s.heroText}>مركز قيادة للمنصة كاملة: تشغيل، مستخدمين، شركات، محافظ، عمولات، تسعير توصيل، نقاط، جوائز، إعلانات واعتمادات — مع فصل صلاحيات الشركات عن أدمن المنصة.</Text>
     </View>
 
     <Text style={s.section}>نظرة عامة</Text>
@@ -48,6 +48,7 @@ export default function AdminDashboard(){
     <Text style={s.section}>أقسام الإدارة</Text>
     <View style={s.grid}>
       <NavCard icon="💰" title="المال والشركات والمكافآت" subtitle="محافظ، مديونيات، عمولات، تقييمات، شركات تشغيل، نقاط وجوايز" onPress={()=>router.push('/admin/finance')}/>
+      <NavCard icon="🧮" title="تسعير التوصيل" subtitle="الحد الأدنى، المسافة، الوقت، نطاق الخدمة ومحاكاة السعر" onPress={()=>router.push('/admin/pricing')}/>
       <NavCard icon="👥" title="التشغيل والمستخدمون" subtitle="الحسابات، الأدوار، المناطق، البلاغات والحذف" onPress={()=>router.push('/admin/operations')}/>
       <NavCard icon="✅" title="طلبات الاعتماد" subtitle="مراجعة التجار والمندوبين والمستندات" badge={data.pendingApplications} onPress={()=>router.push('/admin/applications')}/>
       <NavCard icon="💳" title="الاشتراكات والخدمات" subtitle="خطط التجار والخدمات التجارية المستقبلية" onPress={()=>router.push('/admin/commerce')}/>
@@ -58,7 +59,7 @@ export default function AdminDashboard(){
 
     <View style={s.footerCard}>
       <Text style={s.footerTitle}>الحالة الحالية</Text>
-      <Text style={s.footerText}>المنصة تعمل • العمليات المالية الحساسة Server-side • الشركات معزولة بصلاحياتها • تحديث البيانات تلقائي كل دقيقة.</Text>
+      <Text style={s.footerText}>المنصة تعمل • التسعير والعمليات المالية الحساسة Server-side • الشركات معزولة بصلاحياتها • تحديث البيانات تلقائي كل دقيقة.</Text>
     </View>
     <Pressable accessibilityRole="button" style={s.switch} onPress={()=>void switchAccount()}><Text style={s.switchText}>تبديل الحساب / تسجيل الخروج</Text></Pressable>
   </ScrollView>;
