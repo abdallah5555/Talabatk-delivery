@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, Card, Muted, Title, colors } from '@/src/components/ui';
-import { adhkarSections, disableAdhkarReminders, enableAdhkarReminders, getAdhkarReminderState, type Dhikr } from '@/src/lib/adhkar';
+import { adhkarReminderCycle, adhkarSections, disableAdhkarReminders, enableAdhkarReminders, getAdhkarReminderState, type Dhikr } from '@/src/lib/adhkar';
 
 const intervalOptions=[1,2,3,4,5,10,15];
 
@@ -16,7 +16,7 @@ export default function Adhkar(){
     setBusy(true);setMessage(null);
     try{
       if(enabled){await disableAdhkarReminders();setEnabled(false);setMessage('تم إيقاف تذكير الأذكار.');}
-      else{await enableAdhkarReminders(interval);setEnabled(true);setMessage(`تم تفعيل التذكير كل ${interval} ${interval===1?'دقيقة':'دقائق'}.`);}
+      else{await enableAdhkarReminders(interval);setEnabled(true);setMessage(`تم تفعيل أذكار متنوعة بالتتابع كل ${interval} ${interval===1?'دقيقة':'دقائق'}.`);}
     }catch(e){setMessage(e instanceof Error?e.message:'تعذر تحديث التذكير. حاول مرة أخرى.');}
     finally{setBusy(false);}
   }
@@ -24,11 +24,11 @@ export default function Adhkar(){
     setIntervalMinutes(value);
     if(!enabled)return;
     setBusy(true);setMessage(null);
-    try{await enableAdhkarReminders(value);setMessage(`تم تعديل التذكير إلى كل ${value} ${value===1?'دقيقة':'دقائق'}.`);}catch(e){setMessage(e instanceof Error?e.message:'تعذر تعديل المدة.');}finally{setBusy(false);}
+    try{await enableAdhkarReminders(value);setMessage(`تم تعديل التذكير إلى كل ${value} ${value===1?'دقيقة':'دقائق'}، مع تدوير الأذكار.`);}catch(e){setMessage(e instanceof Error?e.message:'تعذر تعديل المدة.');}finally{setBusy(false);}
   }
   return <ScrollView style={s.page} contentContainerStyle={s.content}>
-    <View style={s.hero}><Text style={s.eyebrow}>ذكر على مدار يومك</Text><Text style={s.heroTitle}>الأذكار</Text><Text style={s.heroText}>اختار كل كام دقيقة تحب توصلك تذكرة، وتصفح الأذكار المختلفة بالترتيب.</Text></View>
-    <Card><Text style={s.sectionTitle}>وقت التذكير</Text><Muted>اختار مدة بسيطة تناسبك.</Muted><View style={s.intervals}>{intervalOptions.map(value=><Pressable key={value} disabled={busy} onPress={()=>void chooseInterval(value)} style={[s.intervalChip,interval===value&&s.intervalChipActive]}><Text style={[s.intervalText,interval===value&&s.intervalTextActive]}>{value}</Text></Pressable>)}</View><Button title={busy?'جاري الحفظ…':enabled?'إيقاف تذكير الأذكار':`تفعيل تذكير كل ${interval} ${interval===1?'دقيقة':'دقائق'}`} onPress={toggle} disabled={busy}/>{message?<View style={[s.notice,enabled?s.noticeOk:s.noticeNeutral]}><Text style={s.noticeText}>{message}</Text></View>:null}</Card>
+    <View style={s.hero}><Text style={s.eyebrow}>ذكر على مدار يومك</Text><Text style={s.heroTitle}>الأذكار</Text><Text style={s.heroText}>اختار كل كام دقيقة تحب توصلك تذكرة. الإشعارات بتلف تلقائيًا على {adhkarReminderCycle.length} ذكر بدل تكرار ذكر واحد.</Text></View>
+    <Card><Text style={s.sectionTitle}>وقت التذكير</Text><Muted>الوقت المحدد هو المدة المطلوبة بين التذكيرات. أندرويد ممكن يؤخر الإشعار وقت توفير البطارية أو السكون العميق، والتطبيق بيجدد الجدول تلقائيًا أول ما تفتحه.</Muted><View style={s.intervals}>{intervalOptions.map(value=><Pressable key={value} disabled={busy} onPress={()=>void chooseInterval(value)} style={[s.intervalChip,interval===value&&s.intervalChipActive]}><Text style={[s.intervalText,interval===value&&s.intervalTextActive]}>{value}</Text></Pressable>)}</View><Button title={busy?'جاري الحفظ…':enabled?'إيقاف تذكير الأذكار':`تفعيل تذكير كل ${interval} ${interval===1?'دقيقة':'دقائق'}`} onPress={toggle} disabled={busy}/>{message?<View style={[s.notice,enabled?s.noticeOk:s.noticeNeutral]}><Text style={s.noticeText}>{message}</Text></View>:null}</Card>
     {adhkarSections.map(section=><View key={section.key} style={s.sectionBlock}><Title>{section.title}</Title>{section.items.map((item,index)=>{const key=`${section.key}-${index}`;return <DhikrCard key={key} item={item} value={counts[key]??0} onPress={()=>setCounts(c=>({...c,[key]:Math.min(item.count,(c[key]??0)+1)}))}/>})}</View>)}
   </ScrollView>;
 }
