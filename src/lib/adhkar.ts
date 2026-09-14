@@ -64,6 +64,7 @@ const DEFAULT_INTERVAL=5;
 const MIN_SCHEDULED_LEFT=12;
 const BATCH_SIZE_ANDROID=240;
 const BATCH_SIZE_IOS=60;
+const SCHEDULE_CONCURRENCY=20;
 
 export type AdhkarReminderState={enabled:boolean;ids:string[];intervalMinutes:number;scheduleVersion?:number;nextIndex?:number};
 
@@ -99,18 +100,20 @@ export async function getAdhkarReminderState():Promise<AdhkarReminderState>{
 
 async function scheduleRotatingBatch(interval:number,startIndex:number){
   if(!adhkarReminderCycle.length)throw new Error('لا توجد أذكار متاحة للتذكير.');
-  const ids:string[]=[];
   const size=batchSize();
   const now=Date.now();
-  for(let i=0;i<size;i+=1){
+  const jobs=Array.from({length:size},(_,i)=>{
     const cycleIndex=(startIndex+i)%adhkarReminderCycle.length;
     const item=adhkarReminderCycle[cycleIndex];
-    const date=new Date(now+(i+1)*interval*60_000);
-    const id=await Notifications.scheduleNotificationAsync({
+    return()=>Notifications.scheduleNotificationAsync({
       content:{title:item.title,body:item.body,data:{kind:'adhkar',section:item.section,cycleIndex}},
-      trigger:{type:Notifications.SchedulableTriggerInputTypes.DATE,date,channelId:Platform.OS==='android'?'adhkar':undefined},
+      trigger:{type:Notifications.SchedulableTriggerInputTypes.DATE,date:new Date(now+(i+1)*interval*60_000),channelId:Platform.OS==='android'?'adhkar':undefined},
     });
-    ids.push(id);
+  });
+  const ids:string[]=[];
+  for(let offset=0;offset<jobs.length;offset+=SCHEDULE_CONCURRENCY){
+    const chunk=jobs.slice(offset,offset+SCHEDULE_CONCURRENCY);
+    ids.push(...await Promise.all(chunk.map(job=>job())));
   }
   return{ids,nextIndex:(startIndex+size)%adhkarReminderCycle.length};
 }
