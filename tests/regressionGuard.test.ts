@@ -110,8 +110,10 @@ describe('critical regression guard',()=>{
     expect(notifications).toContain("pathname:'/order/[id]'");
   });
 
-  it('keeps loyalty points server-authoritative and referral rewards idempotent',()=>{
+  it('keeps loyalty points server-authoritative and referrals registration-only',()=>{
     const migration=read('supabase/migrations/202609141430_customer_loyalty_and_referrals.sql');
+    const registration=read('supabase/migrations/202609141700_role_scoped_rewards_referral_and_driver_subsidy_wallet.sql');
+    const signup=read('supabase/functions/customer-signup/index.ts');
     const client=read('src/lib/rewards.ts');
     const assistant=read('src/lib/assistant.ts');
     expect(migration).toContain('alter table public.reward_wallets enable row level security');
@@ -120,7 +122,10 @@ describe('critical regression guard',()=>{
     expect(migration).toContain("source='order_delivered'");
     expect(migration).toContain('referred_user_id<>referrer_user_id');
     expect(client).toContain("supabase.rpc('get_my_rewards')");
-    expect(client).toContain("supabase.rpc('claim_referral_code'");
+    expect(client).not.toContain("supabase.rpc('claim_referral_code'");
+    expect(signup).toContain('referralCode');
+    expect(registration).toContain('referral code is registration-only');
+    expect(registration).toContain('reward_points constant integer := 50');
     expect(assistant).toContain("href:'/rewards'");
   });
 
@@ -154,7 +159,7 @@ describe('critical regression guard',()=>{
     expect(settlement).toContain('rating_snapshot');
     expect(settlement).toContain('quality_bonus_amount');
     expect(settlement).toContain('greatest(0,gross+bonus_amount-driver_platform_amount-fleet_driver_amount)');
-    expect(admin).toContain('مفيش خصم عقابي تلقائي بسبب تقييم واحد');
+    expect(admin).toContain('لا يسبب خصمًا تلقائيًا من الأجر الأساسي');
   });
 
   it('awards points to customers drivers and merchants and consumes rewards server-side',()=>{
