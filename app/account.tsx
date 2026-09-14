@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Button, Card, Muted, colors } from '@/src/components/ui';
 import { getMyRoles } from '@/src/lib/api';
+import { getMyFleetSummary } from '@/src/lib/finance';
 import { supabase } from '@/src/lib/supabase';
 import { getOnboardingIdentity } from '@/src/lib/onboarding';
 import { useAuth } from '@/src/providers/AppProviders';
@@ -17,7 +18,9 @@ export default function Account(){
   const {session}=useAuth();
   const roles=useQuery({queryKey:['roles',session?.user.id],queryFn:getMyRoles,enabled:Boolean(session?.user.id)});
   const profile=useQuery({queryKey:['profile-summary',session?.user.id],queryFn:getOnboardingIdentity,enabled:Boolean(session?.user.id),retry:2,staleTime:30_000});
+  const fleet=useQuery({queryKey:['fleet-summary',session?.user.id],queryFn:getMyFleetSummary,enabled:Boolean(session?.user.id),retry:false,staleTime:30_000});
   const list=(roles.data??[]) as AppRole[];
+  const hasBusinessRole=list.includes('merchant')||list.includes('driver')||Boolean(fleet.data?.fleet_id);
   const metadataName=typeof session?.user.user_metadata?.full_name==='string'?session.user.user_metadata.full_name.trim():'';
   const metadataPhone=typeof session?.user.user_metadata?.phone==='string'?session.user.user_metadata.phone.trim():'';
   const phone=profile.data?.phone||metadataPhone||'';
@@ -27,7 +30,7 @@ export default function Account(){
 
     {list.length>1?<><Text style={s.section}>تبديل وضع الحساب</Text><View style={s.roleGrid}>{list.map(role=><Pressable key={role} accessibilityRole="button" onPress={()=>router.replace(roleRoute[role] as never)} style={s.roleCard}><Text style={s.roleIcon}>{roleIcon[role]}</Text><Text style={s.roleName}>{names[role]}</Text><Text style={s.roleOpen}>فتح الواجهة</Text></Pressable>)}</View></>:null}
 
-    <Text style={s.section}>اختصاراتك</Text><View style={s.grid}><Tile icon="✨" title="مساعد طلباتك" subtitle="دور واسأل بطريقتك" onPress={()=>router.push('/assistant')}/><Tile icon="🎁" title="نقاطي" subtitle="مكافآت ودعوة أصحابك" onPress={()=>router.push('/rewards')}/><Tile icon="🧾" title="طلباتي" subtitle="متابعة وسجل الطلبات" onPress={()=>router.push('/orders')}/><Tile icon="📍" title="عناويني" subtitle="بيت، شغل وأماكن محفوظة" onPress={()=>router.push('/addresses')}/><Tile icon="❤️" title="المفضلة" subtitle="أماكنك المحفوظة" onPress={()=>router.push('/favorites')}/><Tile icon="🔔" title="الإشعارات" subtitle="آخر التحديثات" onPress={()=>router.push('/notifications')}/><Tile icon="🤲" title="الأذكار" subtitle="تذكيرات متنوعة من 1 إلى 15 دقيقة" onPress={()=>router.push('/adhkar')}/></View>
+    <Text style={s.section}>اختصاراتك</Text><View style={s.grid}><Tile icon="✨" title="مساعد طلباتك" subtitle="دور واسأل بطريقتك" onPress={()=>router.push('/assistant')}/><Tile icon="🎁" title="نقاطي" subtitle="جوايز ونقاط لكل أنواع الحسابات" onPress={()=>router.push('/rewards')}/>{hasBusinessRole?<Tile icon="💰" title="المحفظة" subtitle="عمولات، مديونية وتسويات" onPress={()=>router.push('/wallet')}/>:null}{fleet.data?.fleet_id?<Tile icon="🏢" title="شركتي" subtitle="المناديب وحسابات الشركة" onPress={()=>router.push('/fleet')}/>:null}<Tile icon="🧾" title="طلباتي" subtitle="متابعة وسجل الطلبات" onPress={()=>router.push('/orders')}/><Tile icon="📍" title="عناويني" subtitle="بيت، شغل وأماكن محفوظة" onPress={()=>router.push('/addresses')}/><Tile icon="❤️" title="المفضلة" subtitle="أماكنك المحفوظة" onPress={()=>router.push('/favorites')}/><Tile icon="🔔" title="الإشعارات" subtitle="آخر التحديثات" onPress={()=>router.push('/notifications')}/><Tile icon="🤲" title="الأذكار" subtitle="تذكيرات متنوعة من 1 إلى 15 دقيقة" onPress={()=>router.push('/adhkar')}/></View>
 
     <Text style={s.section}>الحساب والأمان</Text><Card><Menu title="ملفي الشخصي" subtitle="الصورة والاسم وتفضيلات التوصيل" icon="🙂" onPress={()=>router.push('/profile')}/><Divider/><Menu title="بياناتي والخصوصية" subtitle="معلومات الحساب والخصوصية" icon="👤" onPress={()=>router.push('/privacy')}/><Divider/><Menu title="الأمان وكلمة المرور" subtitle="تغيير كلمة المرور وإعدادات الحماية" icon="🔐" onPress={()=>router.push('/security')}/><Divider/><Menu title="الدعم والشكاوى" subtitle="مركز حل مشاكل الطلب ومتابعتها" icon="💬" onPress={()=>router.push('/support')}/></Card>
 
