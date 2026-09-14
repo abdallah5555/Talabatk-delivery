@@ -23,7 +23,7 @@ export default function Addresses() {
   const [notice,setNotice]=useState<{type:'ok'|'error';text:string}|null>(null);
   const initial=useMemo<[number,number]>(()=>[31.2357,30.0444],[]);
   const center=point?[point.longitude,point.latitude] as [number,number]:initial;
-  const selectedFeature=point?({type:'Feature',properties:{},geometry:{type:'Point',coordinates:[point.longitude,point.latitude]}} as const):null;
+  const selectedFeature:any=point?{type:'Feature',properties:{},geometry:{type:'Point',coordinates:[point.longitude,point.latitude]}}:null;
 
   async function locateMe(){
     setNotice(null);
