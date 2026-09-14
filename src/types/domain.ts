@@ -37,6 +37,7 @@ export type Order = {
   payment_method: string;
   delivery_address: string;
   customer_note: string | null;
+  estimated_minutes?: number | null;
   scheduled_for?: string | null;
   created_at: string;
 };
