@@ -59,36 +59,74 @@ export const adhkarSections:DhikrSection[]=[
 ];
 
 const KEY='talabatk:adhkar-reminders:v2';
-const SCHEDULE_VERSION=3;
-export type AdhkarReminderState={enabled:boolean;ids:string[];intervalMinutes:number;scheduleVersion?:number};
+const SCHEDULE_VERSION=4;
 const DEFAULT_INTERVAL=5;
-const reminderDhikr={
-  title:'لا إله إلا الله وحده لا شريك له 🤲',
-  body:'له الملك وله الحمد وهو على كل شيء قدير.',
-};
+const MIN_SCHEDULED_LEFT=12;
+const BATCH_SIZE_ANDROID=240;
+const BATCH_SIZE_IOS=60;
+
+export type AdhkarReminderState={enabled:boolean;ids:string[];intervalMinutes:number;scheduleVersion?:number;nextIndex?:number};
+
+type ReminderItem={title:string;body:string;section:string};
+
+export const adhkarReminderCycle:ReminderItem[]=adhkarSections.flatMap(section=>section.items.map(item=>({
+  title:`${section.title} 🤲`,
+  body:item.text,
+  section:section.key,
+})));
+
+function batchSize(){return Platform.OS==='ios'?BATCH_SIZE_IOS:BATCH_SIZE_ANDROID;}
+
+async function getScheduledAdhkar(){
+  const scheduled=await Notifications.getAllScheduledNotificationsAsync();
+  return scheduled.filter(request=>request.content.data?.kind==='adhkar');
+}
+
+async function cancelAllScheduledAdhkar(){
+  const scheduled=await getScheduledAdhkar();
+  await Promise.all(scheduled.map(request=>Notifications.cancelScheduledNotificationAsync(request.identifier).catch(()=>undefined)));
+}
+
 export async function getAdhkarReminderState():Promise<AdhkarReminderState>{
   try{
     const raw=await AsyncStorage.getItem(KEY);
-    if(!raw)return{enabled:false,ids:[],intervalMinutes:DEFAULT_INTERVAL,scheduleVersion:SCHEDULE_VERSION};
+    if(!raw)return{enabled:false,ids:[],intervalMinutes:DEFAULT_INTERVAL,scheduleVersion:SCHEDULE_VERSION,nextIndex:0};
     const parsed=JSON.parse(raw) as Partial<AdhkarReminderState>;
     const interval=Math.min(15,Math.max(1,Number(parsed.intervalMinutes)||DEFAULT_INTERVAL));
-    return{enabled:Boolean(parsed.enabled),ids:Array.isArray(parsed.ids)?parsed.ids:[],intervalMinutes:interval,scheduleVersion:Number(parsed.scheduleVersion)||0};
-  }catch{return{enabled:false,ids:[],intervalMinutes:DEFAULT_INTERVAL,scheduleVersion:SCHEDULE_VERSION};}
+    return{enabled:Boolean(parsed.enabled),ids:Array.isArray(parsed.ids)?parsed.ids:[],intervalMinutes:interval,scheduleVersion:Number(parsed.scheduleVersion)||0,nextIndex:Math.max(0,Number(parsed.nextIndex)||0)};
+  }catch{return{enabled:false,ids:[],intervalMinutes:DEFAULT_INTERVAL,scheduleVersion:SCHEDULE_VERSION,nextIndex:0};}
+}
+
+async function scheduleRotatingBatch(interval:number,startIndex:number){
+  if(!adhkarReminderCycle.length)throw new Error('لا توجد أذكار متاحة للتذكير.');
+  const ids:string[]=[];
+  const size=batchSize();
+  const now=Date.now();
+  for(let i=0;i<size;i+=1){
+    const cycleIndex=(startIndex+i)%adhkarReminderCycle.length;
+    const item=adhkarReminderCycle[cycleIndex];
+    const date=new Date(now+(i+1)*interval*60_000);
+    const id=await Notifications.scheduleNotificationAsync({
+      content:{title:item.title,body:item.body,data:{kind:'adhkar',section:item.section,cycleIndex}},
+      trigger:{type:Notifications.SchedulableTriggerInputTypes.DATE,date,channelId:Platform.OS==='android'?'adhkar':undefined},
+    });
+    ids.push(id);
+  }
+  return{ids,nextIndex:(startIndex+size)%adhkarReminderCycle.length};
 }
 
 export async function enableAdhkarReminders(intervalMinutes:number){
   if(Platform.OS==='web') throw new Error('التذكيرات المحلية متاحة في تطبيق الموبايل.');
   const interval=Math.min(15,Math.max(1,Math.round(intervalMinutes)));
-  if(Platform.OS==='android') await Notifications.setNotificationChannelAsync('adhkar',{name:'الأذكار',importance:Notifications.AndroidImportance.DEFAULT});
+  if(Platform.OS==='android') await Notifications.setNotificationChannelAsync('adhkar',{name:'الأذكار',importance:Notifications.AndroidImportance.HIGH,vibrationPattern:[0,180,100,180]});
   const current=await Notifications.getPermissionsAsync();
   const permission=current.granted?current:await Notifications.requestPermissionsAsync();
   if(!permission.granted) throw new Error('فعّل إذن الإشعارات حتى نقدر نفكرك بالأذكار.');
-  await disableAdhkarReminders();
-  const id=await Notifications.scheduleNotificationAsync({
-    content:{title:reminderDhikr.title,body:reminderDhikr.body,data:{kind:'adhkar'}},
-    trigger:{type:Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,seconds:interval*60,repeats:true,channelId:'adhkar'},
-  });
-  const saved={enabled:true,ids:[id],intervalMinutes:interval,scheduleVersion:SCHEDULE_VERSION};
+
+  const previous=await getAdhkarReminderState();
+  await cancelAllScheduledAdhkar();
+  const scheduled=await scheduleRotatingBatch(interval,previous.nextIndex??0);
+  const saved:AdhkarReminderState={enabled:true,ids:scheduled.ids,intervalMinutes:interval,scheduleVersion:SCHEDULE_VERSION,nextIndex:scheduled.nextIndex};
   await AsyncStorage.setItem(KEY,JSON.stringify(saved));
   return saved;
 }
@@ -96,12 +134,17 @@ export async function enableAdhkarReminders(intervalMinutes:number){
 export async function refreshAdhkarReminderScheduleIfNeeded(){
   if(Platform.OS==='web')return;
   const saved=await getAdhkarReminderState();
-  if(!saved.enabled||saved.scheduleVersion===SCHEDULE_VERSION)return;
-  await enableAdhkarReminders(saved.intervalMinutes);
+  if(!saved.enabled)return;
+  const scheduled=await getScheduledAdhkar();
+  const needsRebuild=saved.scheduleVersion!==SCHEDULE_VERSION||scheduled.length<MIN_SCHEDULED_LEFT;
+  if(!needsRebuild)return;
+  await cancelAllScheduledAdhkar();
+  const next=await scheduleRotatingBatch(saved.intervalMinutes,saved.nextIndex??0);
+  await AsyncStorage.setItem(KEY,JSON.stringify({enabled:true,ids:next.ids,intervalMinutes:saved.intervalMinutes,scheduleVersion:SCHEDULE_VERSION,nextIndex:next.nextIndex}));
 }
 
 export async function disableAdhkarReminders(){
   const saved=await getAdhkarReminderState();
-  await Promise.all(saved.ids.map(id=>Notifications.cancelScheduledNotificationAsync(id).catch(()=>undefined)));
-  await AsyncStorage.setItem(KEY,JSON.stringify({enabled:false,ids:[],intervalMinutes:saved.intervalMinutes||DEFAULT_INTERVAL,scheduleVersion:SCHEDULE_VERSION}));
+  await cancelAllScheduledAdhkar();
+  await AsyncStorage.setItem(KEY,JSON.stringify({enabled:false,ids:[],intervalMinutes:saved.intervalMinutes||DEFAULT_INTERVAL,scheduleVersion:SCHEDULE_VERSION,nextIndex:saved.nextIndex??0}));
 }
