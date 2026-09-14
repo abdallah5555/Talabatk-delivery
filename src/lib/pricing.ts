@@ -31,10 +31,10 @@ export async function updateDeliveryPricing(input:{enabled:boolean;baseFee:numbe
 }
 
 export function simulateDeliveryFee(settings:any,roadKm:number){
-  const speed=Math.max(5,Number(settings.delivery_avg_speed_kmh??22));
+  const speed=Math.max(5,Number(settings.delivery_avg_speed_kmh??20));
   const mins=roadKm/speed*60;
-  const raw=Number(settings.delivery_base_fee??35)+Math.max(0,roadKm-Number(settings.delivery_included_km??3))*Number(settings.delivery_per_extra_km??5)+mins*Number(settings.delivery_per_minute??0.5);
-  const step=Math.max(.01,Number(settings.delivery_round_step??5));
+  const raw=Number(settings.delivery_base_fee??0)+Math.max(0,roadKm-Number(settings.delivery_included_km??0))*Number(settings.delivery_per_extra_km??10)+mins*Number(settings.delivery_per_minute??0.15);
+  const step=Math.max(.01,Number(settings.delivery_round_step??1));
   const rounded=Math.ceil(raw/step)*step;
-  return Math.max(Number(settings.delivery_min_fee??40),Math.min(Number(settings.delivery_max_fee??250),rounded));
+  return Math.max(Number(settings.delivery_min_fee??10),Math.min(Number(settings.delivery_max_fee??200),rounded));
 }
