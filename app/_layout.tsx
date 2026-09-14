@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
-import { I18nManager, View } from 'react-native';
+import { AppState, I18nManager, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { AppProviders } from '@/src/providers/AppProviders';
 import { AppGate } from '@/src/components/AppGate';
@@ -11,7 +11,13 @@ I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
 
 export default function RootLayout() {
-  useEffect(()=>{void refreshAdhkarReminderScheduleIfNeeded().catch(()=>undefined);},[]);
+  useEffect(()=>{
+    void refreshAdhkarReminderScheduleIfNeeded().catch(()=>undefined);
+    const subscription=AppState.addEventListener('change',state=>{
+      if(state==='active')void refreshAdhkarReminderScheduleIfNeeded().catch(()=>undefined);
+    });
+    return()=>subscription.remove();
+  },[]);
   return (
     <AppProviders>
       <AppGate>
