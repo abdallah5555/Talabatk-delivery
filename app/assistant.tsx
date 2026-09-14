@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -13,14 +13,16 @@ export default function AssistantScreen(){
   const orders=useQuery({queryKey:['my-orders'],queryFn:getMyOrders,staleTime:15_000});
   const [messages,setMessages]=useState<ChatMessage[]>([seed]);
   const [draft,setDraft]=useState('');
+  const messageSequence=useRef(0);
   const latest=orders.data?.[0];
   const context=useMemo(()=>({latestOrderId:latest?.id??null,latestOrderStatus:latest?.status??null,hasActiveOrder:Boolean(latest&&!['delivered','cancelled','rejected'].includes(latest.status))}),[latest]);
 
   function send(value=draft){
     const text=value.trim();if(!text)return;
     const reply=buildAssistantReply(text,context);
-    const stamp=Date.now();
-    setMessages(list=>[...list,{id:`u-${stamp}`,role:'user',text},{id:`a-${stamp}`,role:'assistant',text:reply.text,reply}]);
+    messageSequence.current+=1;
+    const sequence=messageSequence.current;
+    setMessages(list=>[...list,{id:`u-${sequence}`,role:'user',text},{id:`a-${sequence}`,role:'assistant',text:reply.text,reply}]);
     setDraft('');
   }
   function run(reply:AssistantReply){
