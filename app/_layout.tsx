@@ -34,6 +34,8 @@ export default function RootLayout() {
             <Stack.Screen name="assistant" options={{ title:'مساعد طلباتك' }} />
             <Stack.Screen name="order-chat/[id]" options={{ title:'شات الطلب' }} />
             <Stack.Screen name="rewards" options={{ title:'النقاط والمكافآت' }} />
+            <Stack.Screen name="wallet" options={{ title:'المحفظة والمحاسبة' }} />
+            <Stack.Screen name="fleet" options={{ title:'إدارة الشركة والمناديب' }} />
             <Stack.Screen name="account" options={{ title:'حسابي' }} />
             <Stack.Screen name="profile" options={{ title:'ملفي الشخصي' }} />
             <Stack.Screen name="applications" options={{ title:'الانضمام للعمل' }} />
