@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
@@ -19,20 +19,20 @@ async function loadProfile():Promise<Details>{
 
 export default function Profile(){
   const {session}=useAuth();
-  const client=useQueryClient();
   const query=useQuery({queryKey:['profile-details',session?.user.id],queryFn:loadProfile,enabled:Boolean(session?.user.id)});
-  const [name,setName]=useState('');
-  const [avatar,setAvatar]=useState<string|null>(null);
-  const [delivery,setDelivery]=useState('');
-  const [accessibility,setAccessibility]=useState('');
-  const [contact,setContact]=useState<'call'|'chat'|'either'>('either');
-  const [busy,setBusy]=useState(false);
+  if(query.isLoading)return <ScrollView style={s.page} contentContainerStyle={s.content}><Title>ملفي الشخصي</Title><Muted>جاري تحميل بياناتك…</Muted></ScrollView>;
+  if(query.isError||!query.data)return <ScrollView style={s.page} contentContainerStyle={s.content}><Title>ملفي الشخصي</Title><Muted>تعذر تحميل بيانات الحساب. حاول فتح الصفحة مرة أخرى.</Muted></ScrollView>;
+  return <ProfileForm key={`${query.data.id}:${query.data.updated_at??''}`} initial={query.data} userId={session?.user.id??''}/>;
+}
 
-  useEffect(()=>{
-    const p=query.data;
-    if(!p)return;
-    setName(p.full_name||'');setAvatar(p.avatar_url||null);setDelivery(p.delivery_instructions||'');setAccessibility(p.accessibility_notes||'');setContact(p.preferred_contact||'either');
-  },[query.data]);
+function ProfileForm({initial,userId}:{initial:Details;userId:string}){
+  const client=useQueryClient();
+  const [name,setName]=useState(initial.full_name||'');
+  const [avatar,setAvatar]=useState<string|null>(initial.avatar_url||null);
+  const [delivery,setDelivery]=useState(initial.delivery_instructions||'');
+  const [accessibility,setAccessibility]=useState(initial.accessibility_notes||'');
+  const [contact,setContact]=useState<'call'|'chat'|'either'>(initial.preferred_contact||'either');
+  const [busy,setBusy]=useState(false);
 
   async function choosePhoto(){
     const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -40,14 +40,14 @@ export default function Profile(){
     const picked=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.82});
     if(picked.canceled)return;
     const asset=picked.assets[0];
-    if(!session?.user.id)return;
+    if(!userId)return;
     setBusy(true);
     try{
       const response=await fetch(asset.uri);
       const body=await response.arrayBuffer();
       const mime=asset.mimeType&&['image/jpeg','image/png','image/webp'].includes(asset.mimeType)?asset.mimeType:'image/jpeg';
       const ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';
-      const path=`${session.user.id}/avatar.${ext}`;
+      const path=`${userId}/avatar.${ext}`;
       const {error}=await supabase.storage.from('profile-avatars').upload(path,body,{contentType:mime,upsert:true,cacheControl:'3600'});
       if(error)throw error;
       const {data}=supabase.storage.from('profile-avatars').getPublicUrl(path);
@@ -80,7 +80,7 @@ export default function Profile(){
     <Card>
       <Text style={s.section}>البيانات الأساسية</Text>
       <Field value={name} onChangeText={setName} placeholder="الاسم الكامل" accessibilityLabel="الاسم الكامل"/>
-      <View style={s.readOnly}><Text style={s.readLabel}>رقم الموبايل</Text><Text style={s.readValue}>{query.data?.phone||'—'}</Text></View>
+      <View style={s.readOnly}><Text style={s.readLabel}>رقم الموبايل</Text><Text style={s.readValue}>{initial.phone||'—'}</Text></View>
     </Card>
     <Card>
       <Text style={s.section}>تفضيلات التوصيل</Text>
@@ -93,7 +93,7 @@ export default function Profile(){
       <Muted>اختياري — مثال: صعوبة في الحركة، يفضّل عدم استخدام السلم، أو أي تعليمات تساعد المندوب.</Muted>
       <Field value={accessibility} onChangeText={setAccessibility} placeholder="اكتب أي ملاحظة مهمة" accessibilityLabel="ملاحظات مساعدة للتوصيل" multiline/>
     </Card>
-    <Button title={busy?'جاري الحفظ…':'حفظ التغييرات'} onPress={()=>void save()} disabled={busy||query.isLoading}/>
+    <Button title={busy?'جاري الحفظ…':'حفظ التغييرات'} onPress={()=>void save()} disabled={busy}/>
   </ScrollView>;
 }
 
