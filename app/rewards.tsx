@@ -17,8 +17,7 @@ const roleExplain:Record<RewardRole,string>={
 
 export default function Rewards(){
   const params=useLocalSearchParams<{role?:string}>();
-  const requested=params.role;
-  const role:RewardRole=requested==='driver'||requested==='merchant'?'driver'===requested?'driver':'merchant':'customer';
+  const role:RewardRole=params.role==='driver'?'driver':params.role==='merchant'?'merchant':'customer';
   const client=useQueryClient();
   const roles=useQuery({queryKey:['roles'],queryFn:getMyRoles});
   const allowed=(roles.data??[]).includes(role);
@@ -37,7 +36,7 @@ export default function Rewards(){
 
   return <ScrollView style={s.page} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
     <Title>{roleTitle[role]}</Title>
-    <View style={s.hero}><Text style={s.points}>{summary.isLoading?'…':summary.data?.points??0}</Text><Text style={s.pointsLabel}>نقطة متاحة</Text><View style={s.levelRow}><Text style={s.level}>مستوى {level.name}</Text><Text style={s.life}>إجمالي {summary.data?.lifetime_points??0} نقطة</Text></View><View style={s.bar}><View style={[s.barFill,{width:`${Math.round(progress*100)}%`]}/></View>{next?<Text style={s.next}>فاضلك {Math.max(0,next-(summary.data?.lifetime_points??0))} نقطة للمستوى اللي بعده</Text>:<Text style={s.next}>وصلت لأعلى مستوى حاليًا 🎉</Text>}</View>
+    <View style={s.hero}><Text style={s.points}>{summary.isLoading?'…':summary.data?.points??0}</Text><Text style={s.pointsLabel}>نقطة متاحة</Text><View style={s.levelRow}><Text style={s.level}>مستوى {level.name}</Text><Text style={s.life}>إجمالي {summary.data?.lifetime_points??0} نقطة</Text></View><View style={s.bar}><View style={[s.barFill,{width:`${Math.round(progress*100)}%`}]}/></View>{next?<Text style={s.next}>فاضلك {Math.max(0,next-(summary.data?.lifetime_points??0))} نقطة للمستوى اللي بعده</Text>:<Text style={s.next}>وصلت لأعلى مستوى حاليًا 🎉</Text>}</View>
 
     <Card><Text style={s.heading}>النقاط بتفيدك إزاي؟</Text><Muted>{roleExplain[role]}</Muted></Card>
 
