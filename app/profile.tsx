@@ -22,7 +22,7 @@ export default function Profile(){
   const query=useQuery({queryKey:['profile-details',session?.user.id],queryFn:loadProfile,enabled:Boolean(session?.user.id)});
   if(query.isLoading)return <ScrollView style={s.page} contentContainerStyle={s.content}><Title>ملفي الشخصي</Title><Muted>جاري تحميل بياناتك…</Muted></ScrollView>;
   if(query.isError||!query.data)return <ScrollView style={s.page} contentContainerStyle={s.content}><Title>ملفي الشخصي</Title><Muted>تعذر تحميل بيانات الحساب. حاول فتح الصفحة مرة أخرى.</Muted></ScrollView>;
-  return <ProfileForm key={`${query.data.id}:${query.data.updated_at??''}`} initial={query.data} userId={session?.user.id??''}/>;
+  return <ProfileForm key={query.data.id} initial={query.data} userId={session?.user.id??''}/>;
 }
 
 function ProfileForm({initial,userId}:{initial:Details;userId:string}){
