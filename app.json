@@ -2,7 +2,7 @@
   "expo": {
     "name": "طلباتك دليفري",
     "slug": "talabatk-delicery",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "runtimeVersion": { "policy": "appVersion" },
     "updates": {
       "url": "https://u.expo.dev/1a617642-b1c4-4a68-8fa5-98c0ad3c7911",
@@ -38,12 +38,12 @@
     ],
     "android": {
       "package": "com.talabatk.delivery",
-      "versionCode": 11,
+      "versionCode": 12,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "android.permission.SCHEDULE_EXACT_ALARM"]
     },
     "web": {
       "bundler": "metro",
