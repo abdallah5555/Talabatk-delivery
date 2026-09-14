@@ -6,7 +6,7 @@ const read=(path:string)=>readFileSync(new URL(`../${path}`,import.meta.url),'ut
 describe('critical regression guard',()=>{
   it('keeps every critical product route present',()=>{
     const routes=[
-      'app/index.tsx','app/login.tsx','app/signup.tsx','app/home.tsx','app/account.tsx','app/profile.tsx','app/search.tsx','app/assistant.tsx',
+      'app/index.tsx','app/login.tsx','app/signup.tsx','app/home.tsx','app/account.tsx','app/profile.tsx','app/search.tsx','app/assistant.tsx','app/order-chat/[id].tsx',
       'app/addresses.tsx','app/favorites.tsx','app/checkout.tsx','app/orders.tsx','app/order/[id].tsx',
       'app/onboarding.tsx','app/pending-approval.tsx','app/role/[role].tsx','app/store/[id].tsx',
       'app/admin/index.tsx','app/admin/applications.tsx','app/admin/operations.tsx','app/admin/commerce.tsx',
@@ -76,5 +76,18 @@ describe('critical regression guard',()=>{
     expect(search).toContain('getMarketplaceCatalog');
     expect(assistant).toContain('buildAssistantReply');
     expect(assistant).toContain("pathname:'/search'");
+  });
+
+  it('keeps order chat participant-scoped and immutable from the client',()=>{
+    const migration=read('supabase/migrations/202609141055_secure_order_chat.sql');
+    const client=read('src/lib/orderChat.ts');
+    expect(migration).toContain('security definer');
+    expect(migration).toContain("sender_id = auth.uid()");
+    expect(migration).toContain('public.can_access_order_chat(order_id)');
+    expect(migration).toContain('grant select, insert on public.order_messages to authenticated');
+    expect(migration).not.toContain('grant update');
+    expect(migration).not.toContain('grant delete');
+    expect(client).toContain("from('order_messages')");
+    expect(client).toContain("event:'INSERT'");
   });
 });
