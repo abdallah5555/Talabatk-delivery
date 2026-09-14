@@ -6,8 +6,8 @@ const text=(path:string)=>readFileSync(new URL(`../${path}`,import.meta.url),'ut
 describe('profile, map and OTA stability regressions',()=>{
   it('keeps OTA manual-only on the current production runtime',()=>{
     const app=JSON.parse(text('app.json')).expo;
-    expect(app.version).toBe('0.1.7');
-    expect(app.android.versionCode).toBe(13);
+    expect(app.version).toBe('0.1.8');
+    expect(app.android.versionCode).toBe(14);
     expect(app.updates.checkAutomatically).toBe('NEVER');
     expect(text('src/components/OtaUpdateBanner.tsx')).not.toContain('reloadAsync');
   });
