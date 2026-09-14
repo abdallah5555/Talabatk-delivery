@@ -55,7 +55,7 @@ export async function getAdminFinanceOverview(){
   return{settings:settings.data,wallets:wallets.data??[],fleets:fleets.data??[],fleetDrivers:fleetDrivers.data??[],loyalty:loyalty.data,rewards:rewards.data??[],profiles:profiles.data??[],roles:roles.data??[],earnings:earnings.data??[]};
 }
 
-export async function updateFinanceSettings(input:{directDriver:number;fleetDriverPlatform:number;fleetPlatform:number;merchant:number;enforcement:boolean;driverDebt:number;merchantDebt:number;fleetDebt:number;ratingBonus:boolean;ratingRules:Array<{min:number;bonus_percent:number}>}){
+export async function updateFinanceSettings(input:{directDriver:number;fleetDriverPlatform:number;fleetPlatform:number;merchant:number;enforcement:boolean;driverDebt:number;merchantDebt:number;fleetDebt:number;ratingBonus:boolean;ratingRules:{min:number;bonus_percent:number}[]}){
   const {data,error}=await supabase.rpc('admin_update_finance_settings',{p_direct_driver_percent:input.directDriver,p_fleet_driver_platform_percent:input.fleetDriverPlatform,p_fleet_platform_percent:input.fleetPlatform,p_merchant_percent:input.merchant,p_enforcement_enabled:input.enforcement,p_driver_debt_limit:input.driverDebt,p_merchant_debt_limit:input.merchantDebt,p_fleet_debt_limit:input.fleetDebt,p_rating_bonus_enabled:input.ratingBonus,p_rating_bonus_rules:input.ratingRules});
   if(error)throw error;return data;
 }
@@ -75,8 +75,8 @@ export async function postWalletAdjustment(walletId:string,amount:number,note:st
   if(error)throw error;return data;
 }
 
-export async function updateLoyaltySettings(input:{customerPer10:number;driverPerDelivery:number;merchantPerOrder:number;referral:number;enabled:boolean}){
-  const {data,error}=await supabase.rpc('admin_update_loyalty_settings',{p_customer_points_per_10:input.customerPer10,p_driver_points_per_delivery:input.driverPerDelivery,p_merchant_points_per_order:input.merchantPerOrder,p_referral_points:input.referral,p_enabled:input.enabled});
+export async function updateLoyaltySettings(input:{customerPer10:number;driverPerDelivery:number;merchantPerOrder:number;enabled:boolean}){
+  const {data,error}=await supabase.rpc('admin_update_loyalty_settings',{p_customer_points_per_10:input.customerPer10,p_driver_points_per_delivery:input.driverPerDelivery,p_merchant_points_per_order:input.merchantPerOrder,p_referral_points:50,p_enabled:input.enabled});
   if(error)throw error;return data;
 }
 
