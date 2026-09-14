@@ -19,10 +19,14 @@ describe('OTA and reminder regressions',()=>{
     expect(config.expo.android.versionCode).toBeGreaterThanOrEqual(10);
   });
 
-  it('keeps adhkar notifications as actual dhikr and migrates old schedules',()=>{
+  it('keeps adhkar notifications rotating through real dhikr and migrates old schedules',()=>{
     const adhkar=text('src/lib/adhkar.ts');
     const layout=text('app/_layout.tsx');
-    expect(adhkar).toContain("title:'لا إله إلا الله وحده لا شريك له 🤲'");
+    expect(adhkar).toContain('adhkarReminderCycle');
+    expect(adhkar).toContain('body:item.text');
+    expect(adhkar).toContain('SchedulableTriggerInputTypes.DATE');
+    expect(adhkar).toContain('getAllScheduledNotificationsAsync');
+    expect(adhkar).toContain('لا إله إلا الله وحده لا شريك له');
     expect(adhkar).toContain('refreshAdhkarReminderScheduleIfNeeded');
     expect(layout).toContain('refreshAdhkarReminderScheduleIfNeeded');
   });
