@@ -26,7 +26,7 @@ export default function AdminDashboard(){
     <View style={s.hero}>
       <View style={s.heroTop}><View style={s.liveDot}/><Text style={s.kicker}>ADMIN CONTROL CENTER</Text></View>
       <Text style={s.heroTitle}>لوحة قيادة طلباتك</Text>
-      <Text style={s.heroText}>نظرة سريعة على المنصة، وبعدها ادخل للقسم المطلوب من غير ما كل أدوات الإدارة تبقى محشورة في شاشة واحدة.</Text>
+      <Text style={s.heroText}>مركز قيادة للمنصة كاملة: تشغيل، مستخدمين، شركات، محافظ، عمولات، نقاط، جوائز، إعلانات واعتمادات — مع فصل صلاحيات الشركات عن أدمن المنصة.</Text>
     </View>
 
     <Text style={s.section}>نظرة عامة</Text>
@@ -47,17 +47,18 @@ export default function AdminDashboard(){
 
     <Text style={s.section}>أقسام الإدارة</Text>
     <View style={s.grid}>
+      <NavCard icon="💰" title="المال والشركات والمكافآت" subtitle="محافظ، مديونيات، عمولات، تقييمات، شركات تشغيل، نقاط وجوايز" onPress={()=>router.push('/admin/finance')}/>
       <NavCard icon="👥" title="التشغيل والمستخدمون" subtitle="الحسابات، الأدوار، المناطق، البلاغات والحذف" onPress={()=>router.push('/admin/operations')}/>
       <NavCard icon="✅" title="طلبات الاعتماد" subtitle="مراجعة التجار والمندوبين والمستندات" badge={data.pendingApplications} onPress={()=>router.push('/admin/applications')}/>
-      <NavCard icon="💳" title="الاشتراكات والعمولات" subtitle="الخدمات، الأسعار وعمولة المندوب" onPress={()=>router.push('/admin/commerce')}/>
+      <NavCard icon="💳" title="الاشتراكات والخدمات" subtitle="خطط التجار والخدمات التجارية المستقبلية" onPress={()=>router.push('/admin/commerce')}/>
       <NavCard icon="📣" title="الإعلانات" subtitle="أماكن الإعلان ومزود العرض" onPress={()=>router.push('/admin/commerce')}/>
-      <NavCard icon="🤲" title="الأذكار" subtitle="تذكير شخصي من دقيقة إلى 15 دقيقة" onPress={()=>router.push('/adhkar')}/>
+      <NavCard icon="🤲" title="الأذكار" subtitle="تذكيرات متنوعة وجدولة محلية" onPress={()=>router.push('/adhkar')}/>
       <NavCard icon="👤" title="حسابي" subtitle="الأدوار والخصوصية وتبديل واجهة الحساب" onPress={()=>router.push('/account')}/>
     </View>
 
     <View style={s.footerCard}>
       <Text style={s.footerTitle}>الحالة الحالية</Text>
-      <Text style={s.footerText}>المنصة تعمل • جلسة الإدارة محفوظة على هذا الجهاز • تحديث البيانات تلقائي كل دقيقة.</Text>
+      <Text style={s.footerText}>المنصة تعمل • العمليات المالية الحساسة Server-side • الشركات معزولة بصلاحياتها • تحديث البيانات تلقائي كل دقيقة.</Text>
     </View>
     <Pressable accessibilityRole="button" style={s.switch} onPress={()=>void switchAccount()}><Text style={s.switchText}>تبديل الحساب / تسجيل الخروج</Text></Pressable>
   </ScrollView>;
