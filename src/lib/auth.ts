@@ -82,17 +82,20 @@ export async function changePassword(currentPassword:string,newPassword:string){
   await markInteractiveAuth();
 }
 
-export async function signUpPhonePassword(input:{name:string;phone:string;password:string;kind:RegistrationKind}){
+export async function signUpPhonePassword(input:{name:string;phone:string;password:string;kind:RegistrationKind;referralCode?:string}){
   const name=input.name.trim();
   const normalized=normalizeEgyptPhone(input.phone);
+  const referralCode=(input.referralCode??'').trim().toUpperCase();
   if(name.length<2) throw new Error('الاسم مطلوب.');
   if(input.password.length<8||input.password.length>72) throw new Error('كلمة المرور لازم تكون من 8 إلى 72 حرفًا.');
+  if(referralCode&&!/^[A-Z0-9]{4,16}$/.test(referralCode))throw new Error('راجع كود الدعوة أو سيبه فاضي.');
 
-  const {data,error}=await supabase.functions.invoke('customer-signup',{body:{name,phone:normalized,password:input.password,kind:input.kind}});
+  const {data,error}=await supabase.functions.invoke('customer-signup',{body:{name,phone:normalized,password:input.password,kind:input.kind,referralCode:referralCode||undefined}});
   if(error){
     const status=(error as any)?.context?.status;
     if(status===409) throw new Error('رقم الهاتف مسجل بالفعل. جرّب تسجيل الدخول.');
     if(status===429) throw new Error('محاولات تسجيل كثيرة. حاول بعد فترة قصيرة.');
+    if(status===400&&referralCode)throw new Error('كود الدعوة غير صحيح. راجعه أو امسحه وكمل التسجيل.');
     throw new Error('تعذر إنشاء الحساب حاليًا. حاول مرة أخرى.');
   }
   if(!data?.success) throw new Error('تعذر إنشاء الحساب حاليًا. حاول مرة أخرى.');
