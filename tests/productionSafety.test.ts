@@ -104,12 +104,14 @@ describe('production safety gates',()=>{
     expect(account).not.toContain("'مستخدم طلباتك'");
   });
 
-  it('keeps adhkar reminders selectable from one to fifteen minutes and shows full sections',()=>{
+  it('keeps adhkar reminders selectable from one to fifteen minutes and shows full rotating sections',()=>{
     const adhkar=text('src/lib/adhkar.ts');
     const screen=text('app/adhkar.tsx');
     expect(adhkar).toContain('Math.min(15,Math.max(1');
-    expect(adhkar).toContain('TIME_INTERVAL');
-    expect(adhkar).toContain('seconds:interval*60');
+    expect(adhkar).toContain('adhkarReminderCycle');
+    expect(adhkar).toContain('SchedulableTriggerInputTypes.DATE');
+    expect(adhkar).toContain('getAllScheduledNotificationsAsync');
+    expect(adhkar).toContain('interval*60_000');
     expect(adhkar).toContain('لا إله إلا الله وحده لا شريك له');
     expect(adhkar).not.toContain("title:'ذكر بسيط 🤲'");
     expect(screen).toContain('intervalOptions=[1,2,3,4,5,10,15]');
@@ -153,6 +155,8 @@ describe('production safety gates',()=>{
     expect(dashboard).toContain("router.push('/admin/operations')");
     expect(dashboard).toContain("router.push('/admin/applications')");
     expect(dashboard).toContain("router.push('/admin/commerce')");
+    expect(dashboard).toContain("router.push('/admin/finance')");
+    expect(dashboard).toContain("router.push('/admin/pricing')");
     expect(dashboard).not.toContain('updateCommercialSettings');
     expect(dashboard).not.toContain('updateAdPlacement');
     expect(layout).toContain('طلبات الاعتماد');
