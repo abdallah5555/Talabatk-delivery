@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildAssistantReply } from '@/src/lib/assistant';
-import { inferMarketplaceCategory, normalizeArabic } from '@/src/lib/marketplace';
+import { buildAssistantReply } from '../src/lib/assistant';
+import { inferMarketplaceCategory, normalizeArabic } from '../src/lib/marketplace';
 
 describe('Talabatk assistant Arabic intent coverage',()=>{
   const cases:[string,string][]=[
