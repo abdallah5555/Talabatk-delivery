@@ -1,29 +1,28 @@
 name: android-apk
+
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'app/**'
-      - 'src/**'
-      - 'public/**'
-      - 'assets/**'
-      - 'app.json'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'eas.json'
-      - '.github/workflows/android-apk.yml'
   workflow_dispatch:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+
 permissions:
   contents: read
+
 concurrency:
-  group: android-apk-${{ github.ref }}
+  group: android-apk-${{ github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: true
+
 jobs:
   build-apk:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -35,6 +34,16 @@ jobs:
           java-version: '17'
       - run: npm ci --no-audit --no-fund
       - run: cp .env.example .env
+
+      - name: Verify manually requested build before compiling
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          npm run doctor
+          npm run lint
+          npm run typecheck
+          npm run test
+          npm run export:web
+
       - run: CI=1 npx expo prebuild --platform android
       - name: Tune Gradle for GitHub runner
         working-directory: android
@@ -50,4 +59,3 @@ jobs:
           name: talabatk-android-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
-# Verification trigger after Expo package-lock synchronization.
