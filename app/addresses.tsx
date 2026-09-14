@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
-import { Camera, Map, ViewAnnotation, type CameraRef } from '@maplibre/maplibre-react-native';
+import { Camera, CircleLayer, Map, ShapeSource } from '@maplibre/maplibre-react-native';
 import { deleteAddress, getAddresses, saveAddress } from '@/src/lib/features';
 import { Button, Card, Field, Muted, Title, colors } from '@/src/components/ui';
 
@@ -12,7 +12,6 @@ type Point={latitude:number;longitude:number};
 
 export default function Addresses() {
   const client = useQueryClient();
-  const camera=useRef<CameraRef>(null);
   const query = useQuery({ queryKey: ['addresses'], queryFn: getAddresses });
   const [label, setLabel] = useState('المنزل');
   const [customLabel,setCustomLabel]=useState('');
@@ -23,6 +22,7 @@ export default function Addresses() {
   const [busy, setBusy] = useState(false);
   const [notice,setNotice]=useState<{type:'ok'|'error';text:string}|null>(null);
   const initial=useMemo<[number,number]>(()=>[31.2357,30.0444],[]);
+  const center=point?[point.longitude,point.latitude] as [number,number]:initial;
 
   async function locateMe(){
     setNotice(null);
@@ -30,10 +30,17 @@ export default function Addresses() {
       const permission=await Location.requestForegroundPermissionsAsync();
       if(!permission.granted)throw new Error('اسمح للتطبيق باستخدام الموقع علشان نحدد مكانك على الخريطة.');
       const pos=await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});
-      const next={latitude:pos.coords.latitude,longitude:pos.coords.longitude};
-      setPoint(next);setShowMap(true);
-      camera.current?.flyTo({center:[next.longitude,next.latitude],duration:500});
+      setPoint({latitude:pos.coords.latitude,longitude:pos.coords.longitude});
+      setShowMap(true);
     }catch(e){setNotice({type:'error',text:e instanceof Error?e.message:'تعذر تحديد الموقع.'});}
+  }
+
+  function choosePoint(event:any){
+    const geometry=event.nativeEvent?.geometry?.coordinates;
+    const lngLat=event.nativeEvent?.lngLat;
+    const longitude=Array.isArray(geometry)?Number(geometry[0]):Number(lngLat?.longitude);
+    const latitude=Array.isArray(geometry)?Number(geometry[1]):Number(lngLat?.latitude);
+    if(Number.isFinite(latitude)&&Number.isFinite(longitude))setPoint({latitude,longitude});
   }
 
   async function add() {
@@ -48,7 +55,7 @@ export default function Addresses() {
     finally { setBusy(false); }
   }
 
-  return <ScrollView style={s.page} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+  return <ScrollView style={s.page} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
     <Title>عناويني</Title>
     <Muted>احفظ أكتر من مكان واختار الاسم اللي يسهّل عليك الطلب بعد كده.</Muted>
     {notice?<View style={[s.notice,notice.type==='ok'?s.ok:s.bad]}><Text style={s.noticeText}>{notice.text}</Text></View>:null}
@@ -58,7 +65,7 @@ export default function Addresses() {
       {label==='أخرى'?<Field value={customLabel} onChangeText={setCustomLabel} placeholder="مثلاً النادي أو بيت العائلة" accessibilityLabel="اسم العنوان"/>:null}
       <Field value={address} onChangeText={setAddress} placeholder="العنوان بالتفصيل — الشارع، العمارة، علامة مميزة" accessibilityLabel="العنوان بالتفصيل" multiline/>
       <View style={s.two}><View style={s.flex}><Button title={point?'✓ الموقع محدد':'تحديد على الخريطة'} onPress={()=>setShowMap(v=>!v)}/></View><View style={s.flex}><Button title="موقعي الحالي" onPress={()=>void locateMe()}/></View></View>
-      {showMap?<View style={s.mapWrap}><Map mapStyle={mapStyle} style={s.map} attribution logo={false} onPress={(event:any)=>{const lngLat=event.nativeEvent?.lngLat;if(lngLat)setPoint({longitude:Number(lngLat.longitude),latitude:Number(lngLat.latitude)});}}><Camera ref={camera} initialViewState={{center:point?[point.longitude,point.latitude]:initial,zoom:point?15:10}}/>{point?<ViewAnnotation lngLat={[point.longitude,point.latitude]}><View style={s.pin}><View style={s.pinDot}/></View></ViewAnnotation>:null}</Map><Muted>اضغط على المكان المطلوب في الخريطة لتحريك العلامة.</Muted></View>:null}
+      {showMap?<View style={s.mapWrap}><Map mapStyle={mapStyle} style={s.map} attribution logo={false} onPress={choosePoint}><Camera key={`${center[0]}:${center[1]}`} initialViewState={{center,zoom:point?15:10}}/>{point?<ShapeSource id="selected-address" shape={{type:'Feature',properties:{},geometry:{type:'Point',coordinates:[point.longitude,point.latitude]}}}><CircleLayer id="selected-address-dot" style={{circleRadius:9,circleColor:colors.primary,circleStrokeWidth:4,circleStrokeColor:'#ffffff'}}/></ShapeSource>:null}</Map><Muted>اضغط مرة واحدة على المكان المطلوب. العلامة البرتقالي هتظهر من غير فتح عناصر Native فوق الخريطة.</Muted></View>:null}
       <Pressable onPress={()=>setDefault(v=>!v)} style={s.defaultRow}><View style={[s.check,isDefault&&s.checkOn]}><Text style={s.checkText}>{isDefault?'✓':''}</Text></View><Text style={s.defaultText}>اجعله العنوان الافتراضي</Text></Pressable>
       <Button title={busy ? 'جاري الحفظ…' : 'حفظ العنوان'} onPress={add} disabled={busy || address.trim().length < 5} />
     </Card>
@@ -69,4 +76,4 @@ export default function Addresses() {
   </ScrollView>;
 }
 
-const s=StyleSheet.create({page:{flex:1,backgroundColor:'#f5f7fa'},content:{padding:18,paddingBottom:44,gap:12,direction:'rtl'},section:{fontSize:16,fontWeight:'900',textAlign:'right',color:'#101828'},sectionHeading:{fontSize:20,fontWeight:'900',textAlign:'right',color:'#101828',marginTop:6},chips:{flexDirection:'row-reverse',flexWrap:'wrap',gap:7},chip:{paddingHorizontal:12,paddingVertical:8,borderRadius:999,backgroundColor:'#f2f4f7',borderWidth:1,borderColor:'#e4e7ec'},chipActive:{backgroundColor:'#fff4ed',borderColor:colors.primary},chipText:{fontWeight:'800',color:'#475467'},chipTextActive:{color:'#b93815'},two:{flexDirection:'row-reverse',gap:8},flex:{flex:1},mapWrap:{height:340,gap:7},map:{flex:1,borderRadius:18,overflow:'hidden'},pin:{width:30,height:30,borderRadius:15,backgroundColor:'#fff',borderWidth:3,borderColor:colors.primary,alignItems:'center',justifyContent:'center'},pinDot:{width:10,height:10,borderRadius:5,backgroundColor:colors.primary},defaultRow:{flexDirection:'row-reverse',alignItems:'center',gap:10,minHeight:42},check:{width:24,height:24,borderRadius:7,borderWidth:1,borderColor:'#98a2b3',alignItems:'center',justifyContent:'center'},checkOn:{backgroundColor:colors.primary,borderColor:colors.primary},checkText:{color:'#fff',fontWeight:'900'},defaultText:{fontWeight:'800',color:'#344054'},notice:{borderRadius:15,padding:13},ok:{backgroundColor:'#ecfdf3',borderWidth:1,borderColor:'#abefc6'},bad:{backgroundColor:'#fef3f2',borderWidth:1,borderColor:'#fecdca'},noticeText:{textAlign:'right',fontWeight:'800',lineHeight:21,color:'#344054'},addressTop:{flexDirection:'row-reverse'},addressLabel:{fontSize:17,fontWeight:'900',textAlign:'right',color:'#101828'},coords:{fontSize:12,color:'#067647',fontWeight:'800',textAlign:'right',marginTop:5}});
+const s=StyleSheet.create({page:{flex:1,backgroundColor:'#f5f7fa'},content:{padding:18,paddingBottom:44,gap:12,direction:'rtl'},section:{fontSize:16,fontWeight:'900',textAlign:'right',color:'#101828'},sectionHeading:{fontSize:20,fontWeight:'900',textAlign:'right',color:'#101828',marginTop:6},chips:{flexDirection:'row-reverse',flexWrap:'wrap',gap:7},chip:{paddingHorizontal:12,paddingVertical:8,borderRadius:999,backgroundColor:'#f2f4f7',borderWidth:1,borderColor:'#e4e7ec'},chipActive:{backgroundColor:'#fff4ed',borderColor:colors.primary},chipText:{fontWeight:'800',color:'#475467'},chipTextActive:{color:'#b93815'},two:{flexDirection:'row-reverse',gap:8},flex:{flex:1},mapWrap:{height:340,gap:7},map:{flex:1,borderRadius:18,overflow:'hidden'},defaultRow:{flexDirection:'row-reverse',alignItems:'center',gap:10,minHeight:42},check:{width:24,height:24,borderRadius:7,borderWidth:1,borderColor:'#98a2b3',alignItems:'center',justifyContent:'center'},checkOn:{backgroundColor:colors.primary,borderColor:colors.primary},checkText:{color:'#fff',fontWeight:'900'},defaultText:{fontWeight:'800',color:'#344054'},notice:{borderRadius:15,padding:13},ok:{backgroundColor:'#ecfdf3',borderWidth:1,borderColor:'#abefc6'},bad:{backgroundColor:'#fef3f2',borderWidth:1,borderColor:'#fecdca'},noticeText:{textAlign:'right',fontWeight:'800',lineHeight:21,color:'#344054'},addressTop:{flexDirection:'row-reverse'},addressLabel:{fontSize:17,fontWeight:'900',textAlign:'right',color:'#101828'},coords:{fontSize:12,color:'#067647',fontWeight:'800',textAlign:'right',marginTop:5}});
