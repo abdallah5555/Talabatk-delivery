@@ -90,4 +90,25 @@ describe('critical regression guard',()=>{
     expect(client).toContain("from('order_messages')");
     expect(client).toContain("event:'INSERT'");
   });
+
+  it('keeps rotating adhkar reminders and Android exact-alarm capability',()=>{
+    const adhkar=read('src/lib/adhkar.ts');
+    const config=JSON.parse(read('app.json'));
+    expect(adhkar).toContain('adhkarReminderCycle');
+    expect(adhkar).toContain('SchedulableTriggerInputTypes.DATE');
+    expect(adhkar).toContain('getAllScheduledNotificationsAsync');
+    expect(adhkar).not.toContain('const reminderDhikr=');
+    expect(config.expo.android.permissions).toContain('android.permission.SCHEDULE_EXACT_ALARM');
+  });
+
+  it('keeps guided issue handling and direct order notification navigation',()=>{
+    const support=read('app/support.tsx');
+    const notifications=read('app/notifications.tsx');
+    const migration=read('supabase/migrations/202609141350_notification_order_deep_links.sql');
+    for(const phrase of ['منتج ناقص','طلب غلط','منتج تالف','الطلب متأخر','مشكلة مع المندوب'])expect(support).toContain(phrase);
+    expect(support).toContain('orderId');
+    expect(migration).toContain('order_id uuid references public.orders');
+    expect(notifications).toContain('order_id');
+    expect(notifications).toContain("pathname:'/order/[id]'");
+  });
 });
