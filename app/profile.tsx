@@ -40,7 +40,7 @@ function ProfileForm({initial,userId}:{initial:Details;userId:string}){
     const picked=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.82});
     if(picked.canceled)return;
     const asset=picked.assets[0];
-    if(!userId)return;
+    if(!asset||!userId)return;
     setBusy(true);
     try{
       const response=await fetch(asset.uri);
