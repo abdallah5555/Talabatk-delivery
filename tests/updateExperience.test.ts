@@ -16,14 +16,18 @@ describe('update and reminder regressions',()=>{
 
   it('rotates all adhkar and rebuilds stale native schedules instead of repeating one text',()=>{
     const adhkar=text('src/lib/adhkar.ts');
+    const page=text('app/adhkar.tsx');
     const layout=text('app/_layout.tsx');
-    expect(adhkar).toContain('SCHEDULE_VERSION=4');
+    expect(adhkar).toContain('SCHEDULE_VERSION=5');
     expect(adhkar).toContain('adhkarReminderCycle');
     expect(adhkar).toContain('getAllScheduledNotificationsAsync');
-    expect(adhkar).toContain("request.content.data?.kind==='adhkar'");
+    expect(adhkar).toContain('isAdhkarRequest');
+    expect(adhkar).toContain('uniqueBodies');
+    expect(adhkar).toContain('getAdhkarScheduleDiagnostics');
     expect(adhkar).toContain('SchedulableTriggerInputTypes.DATE');
     expect(adhkar).toContain('scheduleRotatingBatch');
     expect(adhkar).not.toContain('const reminderDhikr=');
+    expect(page).toContain('REQUEST_SCHEDULE_EXACT_ALARM');
     expect(layout).toContain('AppState.addEventListener');
     expect(layout).toContain('refreshAdhkarReminderScheduleIfNeeded');
   });
