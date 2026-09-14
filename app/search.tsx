@@ -1,0 +1,31 @@
+import { useMemo, useState } from 'react';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { Field, Muted, colors } from '@/src/components/ui';
+import { getMarketplaceCatalog, MARKETPLACE_CATEGORIES, searchMarketplace } from '@/src/lib/marketplace';
+
+export default function SearchScreen(){
+  const params=useLocalSearchParams<{q?:string;category?:string;maxPrice?:string}>();
+  const [query,setQuery]=useState(params.q??'');
+  const [category,setCategory]=useState(params.category??'all');
+  const maxPrice=params.maxPrice?Number(params.maxPrice):null;
+  const catalog=useQuery({queryKey:['marketplace-catalog'],queryFn:getMarketplaceCatalog,staleTime:60_000});
+  const results=useMemo(()=>searchMarketplace(catalog.data??{stores:[],items:[]},query,category,Number.isFinite(maxPrice)?maxPrice:null),[catalog.data,query,category,maxPrice]);
+  const data=useMemo(()=>[
+    ...results.items.map(item=>({kind:'item' as const,key:`item-${item.id}`,item})),
+    ...results.stores.map(store=>({kind:'store' as const,key:`store-${store.id}`,store})),
+  ],[results]);
+  return <View style={s.page}>
+    <FlatList data={data} keyExtractor={x=>x.key} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" ListHeaderComponent={<View style={s.header}>
+      <Text style={s.title}>دور على أي حاجة</Text><Text style={s.subtitle}>أكل، دواء، بقالة، موبايل، ملابس، هدايا، قطع غيار أو خدمة محلية.</Text>
+      <Field value={query} onChangeText={setQuery} placeholder="اكتب اسم منتج، خدمة أو متجر" accessibilityLabel="بحث شامل" autoFocus={Boolean(params.q)}/>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categories}>{MARKETPLACE_CATEGORIES.map(([key,label,icon])=><Pressable key={key} onPress={()=>setCategory(key)} style={[s.category,category===key&&s.categoryOn]}><Text style={s.categoryIcon}>{icon}</Text><Text style={[s.categoryText,category===key&&s.categoryTextOn]}>{label}</Text></Pressable>)}</ScrollView>
+      {maxPrice?<View style={s.priceBadge}><Text style={s.priceText}>السعر المطلوب: حتى {maxPrice} ج</Text></View>:null}
+      <View style={s.sectionRow}><Text style={s.section}>النتائج</Text><Text style={s.count}>{data.length} نتيجة</Text></View>
+      {catalog.isLoading?<Muted>جاري البحث في كل المتاجر والمنتجات…</Muted>:null}{catalog.isError?<Muted>تعذر تحميل البحث. جرّب مرة تانية.</Muted>:null}
+    </View>} ListEmptyComponent={!catalog.isLoading?<View style={s.empty}><Text style={s.emptyIcon}>🔎</Text><Text style={s.emptyTitle}>مفيش نتائج مطابقة</Text><Muted>جرّب كلمة أبسط أو قسم مختلف.</Muted></View>:null} renderItem={({item})=>item.kind==='item'?<Pressable onPress={()=>router.push({pathname:'/store/[id]',params:{id:item.item.store_id}})} style={s.card}><View style={s.imageWrap}>{item.item.image_url?<Image source={{uri:item.item.image_url}} style={s.image} contentFit="cover"/>:<Text style={s.placeholder}>🛍️</Text>}</View><View style={s.flex}><Text style={s.name}>{item.item.name}</Text><Text style={s.storeName}>{item.item.store_name}</Text><Text numberOfLines={2} style={s.desc}>{item.item.description??item.item.category??'منتج متاح للطلب'}</Text><View style={s.metaRow}><Text style={s.price}>{item.item.price.toFixed(2)} ج</Text><Text style={s.meta}>★ {item.item.store_rating.toFixed(1)}</Text><Text style={s.meta}>توصيل {item.item.delivery_fee.toFixed(0)} ج</Text></View></View></Pressable>:<Pressable onPress={()=>router.push({pathname:'/store/[id]',params:{id:item.store.id}})} style={s.card}><View style={s.imageWrap}>{item.store.image_url?<Image source={{uri:item.store.image_url}} style={s.image} contentFit="cover"/>:<Text style={s.placeholder}>🏪</Text>}</View><View style={s.flex}><Text style={s.name}>{item.store.name}</Text><Text style={s.storeName}>{item.store.category??'متجر'}</Text><Text numberOfLines={2} style={s.desc}>{item.store.description??'افتح المتجر وشوف المتاح'}</Text><View style={s.metaRow}><Text style={s.price}>★ {item.store.rating.toFixed(1)}</Text><Text style={s.meta}>توصيل {item.store.delivery_fee.toFixed(0)} ج</Text></View></View></Pressable>}/>
+  </View>;
+}
+const s=StyleSheet.create({page:{flex:1,backgroundColor:'#f5f7fa'},content:{padding:16,paddingBottom:44,gap:10},header:{gap:12,direction:'rtl'},title:{fontSize:27,fontWeight:'900',color:'#101828',textAlign:'right'},subtitle:{fontSize:13,lineHeight:21,color:'#667085',textAlign:'right'},categories:{gap:8,direction:'rtl',paddingVertical:2},category:{minWidth:105,backgroundColor:'#fff',borderWidth:1,borderColor:'#e4e7ec',borderRadius:18,paddingHorizontal:12,paddingVertical:10,alignItems:'center',gap:4},categoryOn:{borderColor:colors.primary,backgroundColor:'#fff4ed'},categoryIcon:{fontSize:20},categoryText:{fontSize:11,fontWeight:'800',color:'#475467'},categoryTextOn:{color:'#b93815'},priceBadge:{alignSelf:'flex-end',backgroundColor:'#ecfdf3',borderRadius:999,paddingHorizontal:11,paddingVertical:7},priceText:{color:'#067647',fontWeight:'900',fontSize:11},sectionRow:{flexDirection:'row-reverse',justifyContent:'space-between',alignItems:'center'},section:{fontSize:20,fontWeight:'900',color:'#101828'},count:{fontSize:12,color:'#667085'},card:{backgroundColor:'#fff',borderRadius:20,borderWidth:1,borderColor:'#eaecf0',padding:10,flexDirection:'row-reverse',gap:11,alignItems:'center'},imageWrap:{width:86,height:86,borderRadius:16,backgroundColor:'#f2f4f7',overflow:'hidden',alignItems:'center',justifyContent:'center'},image:{width:'100%',height:'100%'},placeholder:{fontSize:32},flex:{flex:1,gap:3},name:{fontSize:16,fontWeight:'900',color:'#101828',textAlign:'right'},storeName:{fontSize:12,fontWeight:'800',color:'#b93815',textAlign:'right'},desc:{fontSize:11,lineHeight:17,color:'#667085',textAlign:'right'},metaRow:{flexDirection:'row-reverse',flexWrap:'wrap',gap:6,marginTop:3},price:{fontSize:13,fontWeight:'900',color:'#101828'},meta:{fontSize:10,color:'#667085',backgroundColor:'#f9fafb',borderRadius:8,paddingHorizontal:6,paddingVertical:3},empty:{paddingVertical:60,alignItems:'center',gap:5},emptyIcon:{fontSize:40},emptyTitle:{fontSize:17,fontWeight:'900',color:'#344054'}});
