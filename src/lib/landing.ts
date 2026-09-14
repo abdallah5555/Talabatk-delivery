@@ -29,17 +29,24 @@ export async function getRegistrationKind(): Promise<RegistrationKind> {
   return value === 'customer' || value === 'merchant' || value === 'driver' ? value : null;
 }
 
+async function isFleetManager(userId:string){
+  const {data,error}=await supabase.from('fleet_companies').select('id').eq('owner_user_id',userId).neq('status','closed').limit(1);
+  if(error)return false;
+  return Boolean(data?.length);
+}
+
 export async function getLandingRoute(): Promise<LandingRoute> {
   const user = await getSessionUser();
   if (!user) return '/home';
-  const kind = await getRegistrationKind();
+  const [kind,roles,fleetManager]=await Promise.all([getRegistrationKind(),getMyRoles(),isFleetManager(user.id)]);
+
+  if (roles.includes('admin')) return '/admin';
+  // A company owner is intentionally NOT a platform admin. They land in the
+  // scoped fleet dashboard and RLS limits them to their company and drivers.
+  if (fleetManager) return '/fleet';
 
   // Customer accounts are active immediately and never depend on approval tables.
-  // This also keeps new customer sign-ins working if approval-table RLS is unavailable.
   if (kind === 'customer') return '/home';
-
-  const roles = await getMyRoles();
-  if (roles.includes('admin')) return '/admin';
   if (roles.includes('merchant')) return '/role/merchant';
   if (roles.includes('driver')) return '/role/driver';
 
