@@ -19,7 +19,7 @@ export default function OrderChat(){
     if(!id||busy||!draft.trim())return;
     const text=draft;setDraft('');setBusy(true);
     try{const message=await sendOrderMessage(id,text);qc.setQueryData<OrderMessage[]>(['order-chat',id],old=>old?.some(x=>x.id===message.id)?old:[...(old??[]),message]);}
-    catch(e){setDraft(text);}
+    catch{setDraft(text);}
     finally{setBusy(false);}
   }
   return <View style={s.page}>
