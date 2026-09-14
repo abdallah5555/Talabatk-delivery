@@ -61,7 +61,8 @@ describe('critical regression guard',()=>{
     expect(map).toContain('GeoJSONSource');
     expect(map).toContain('selected-address-dot');
     expect(profile).toContain('expo-image-picker');
-    expect(profile).toContain('uploadProfileAvatar');
+    expect(profile).toContain("storage.from('profile-avatars')");
+    expect(profile).toContain("supabase.rpc('update_my_profile_details'");
     expect(ota).not.toContain('reloadAsync(');
   });
 });
