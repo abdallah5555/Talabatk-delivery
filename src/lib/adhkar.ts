@@ -104,7 +104,7 @@ async function scheduleRotatingBatch(interval:number,startIndex:number){
   const now=Date.now();
   const jobs=Array.from({length:size},(_,i)=>{
     const cycleIndex=(startIndex+i)%adhkarReminderCycle.length;
-    const item=adhkarReminderCycle[cycleIndex];
+    const item=adhkarReminderCycle[cycleIndex]!;
     return()=>Notifications.scheduleNotificationAsync({
       content:{title:item.title,body:item.body,data:{kind:'adhkar',section:item.section,cycleIndex}},
       trigger:{type:Notifications.SchedulableTriggerInputTypes.DATE,date:new Date(now+(i+1)*interval*60_000),channelId:Platform.OS==='android'?'adhkar':undefined},
