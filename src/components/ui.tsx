@@ -7,7 +7,12 @@ export function Screen({children}:PropsWithChildren){return <View style={s.scree
 export function Card({children}:PropsWithChildren){return <View style={s.card}>{children}</View>}
 export function Title({children}:PropsWithChildren){return <Text style={s.title}>{children}</Text>}
 export function Muted({children}:PropsWithChildren){return <Text style={s.muted}>{children}</Text>}
-export function Field(props:TextInputProps){return <TextInput placeholderTextColor="#98a2b3" {...props} style={[s.field,props.style]}/>}
+type FieldProps=TextInputProps&{label?:string};
+export function Field({label,...props}:FieldProps){
+  const input=<TextInput placeholderTextColor="#98a2b3" accessibilityLabel={props.accessibilityLabel??label} {...props} style={[s.field,props.style]}/>;
+  if(!label)return input;
+  return <View style={s.fieldWrap}><Text style={s.fieldLabel}>{label}</Text>{input}</View>;
+}
 export function PasswordField(props:TextInputProps){
   const[visible,setVisible]=useState(false);
   return <View style={s.passwordWrap}>
@@ -24,6 +29,8 @@ const s=StyleSheet.create({
   card:{backgroundColor:colors.card,borderWidth:1,borderColor:colors.border,borderRadius:22,padding:17,gap:11,shadowColor:'#101828',shadowOpacity:0.05,shadowRadius:12,shadowOffset:{width:0,height:4},elevation:2},
   title:{color:colors.text,fontSize:24,fontWeight:'900',lineHeight:32,textAlign:'right'},
   muted:{color:colors.muted,fontSize:14,lineHeight:22,textAlign:'right'},
+  fieldWrap:{gap:6},
+  fieldLabel:{fontSize:12,fontWeight:'900',color:'#475467',textAlign:'right'},
   field:{minHeight:50,backgroundColor:'#fff',borderWidth:1,borderColor:'#d0d5dd',borderRadius:15,paddingHorizontal:14,paddingVertical:12,color:colors.text,textAlign:'right',fontSize:15},
   passwordWrap:{minHeight:50,backgroundColor:'#fff',borderWidth:1,borderColor:'#d0d5dd',borderRadius:15,flexDirection:'row',alignItems:'center',overflow:'hidden'},
   passwordInput:{flex:1,minHeight:48,paddingHorizontal:14,paddingVertical:12,color:colors.text,textAlign:'right',fontSize:15},
