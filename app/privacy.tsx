@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button, Card, Field, Muted, Screen, Title } from '@/src/components/ui';
 import { getDeletionRequests, getMyProfile, requestAccountDeletion, updateMyProfile } from '@/src/lib/privacy';
 
