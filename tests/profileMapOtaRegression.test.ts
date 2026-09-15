@@ -4,12 +4,17 @@ import { readFileSync } from 'node:fs';
 const text=(path:string)=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
 describe('profile, map and OTA stability regressions',()=>{
-  it('keeps OTA manual-only on the current production runtime',()=>{
+  it('keeps OTA pinned to the current production runtime with safe automatic download',()=>{
     const app=JSON.parse(text('app.json')).expo;
-    expect(app.version).toBe('0.1.8');
-    expect(app.android.versionCode).toBe(14);
+    const ota=text('src/components/OtaUpdateBanner.tsx');
+    expect(app.version).toBe('0.1.9');
+    expect(app.android.versionCode).toBe(15);
     expect(app.updates.checkAutomatically).toBe('NEVER');
-    expect(text('src/components/OtaUpdateBanner.tsx')).not.toContain('reloadAsync');
+    expect(app.updates.requestHeaders?.['expo-channel-name']).toBe('production');
+    expect(ota).toContain('checkForUpdateAsync');
+    expect(ota).toContain('fetchUpdateAsync');
+    expect(ota).toContain('void checkAndDownload()');
+    expect(ota).not.toContain('reloadAsync');
   });
 
   it('uses a render-safe MapLibre v11 layer instead of ViewAnnotation for address selection',()=>{
