@@ -28,8 +28,7 @@ export function OtaUpdateBanner() {
         setState('idle');
         return;
       }
-      // Keep startup safe: never force reloadAsync from inside the running app.
-      // The freshly downloaded OTA is applied on the next normal cold launch.
+      // Keep startup safe: apply the freshly downloaded OTA on the next normal cold launch.
       setState('ready');
     } catch {
       setState('error');
