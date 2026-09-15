@@ -7,7 +7,8 @@ describe('role rewards, referral, wallet and assistant regressions',()=>{
   it('keeps assistant composer keyboard-aware and customer copy clean',()=>{
     const assistant=text('app/assistant.tsx');
     expect(assistant).toContain('KeyboardAvoidingView');
-    expect(assistant).toContain("keyboardDismissMode=\"interactive\"");
+    expect(assistant).toContain('behavior="padding"');
+    expect(assistant).toContain("Platform.OS==='ios'?'interactive':'on-drag'");
     expect(assistant).not.toContain('بدون اشتراك AI');
     expect(assistant).not.toContain('AI مدفوع');
     expect(assistant).not.toContain("position:'absolute'");
@@ -17,12 +18,15 @@ describe('role rewards, referral, wallet and assistant regressions',()=>{
     const signup=text('app/signup.tsx');
     const auth=text('src/lib/auth.ts');
     const rewards=text('app/rewards.tsx');
+    const profile=text('app/profile.tsx');
     const migration=text('supabase/migrations/202609141700_role_scoped_rewards_referral_and_driver_subsidy_wallet.sql');
     expect(signup).toContain('وقت إنشاء الحساب لأول مرة');
     expect(signup).toContain('50 نقطة');
     expect(auth).toContain('referralCode');
     expect(rewards).not.toContain('claimReferralCode');
     expect(rewards).not.toContain('قيمة مكافأة الدعوة بيحددها الأدمن');
+    expect(profile).not.toContain('كود دعوتك');
+    expect(profile).not.toContain('referralCode');
     expect(migration).toContain('reward_points constant integer := 50');
     expect(migration).toContain('referral code is registration-only');
   });
@@ -62,9 +66,9 @@ describe('role rewards, referral, wallet and assistant regressions',()=>{
     const profile=text('app/profile.tsx');
     expect(profile).toContain('query.refetch()');
     expect(profile).toContain('KeyboardAvoidingView');
+    expect(profile).toContain('getOnboardingIdentity');
     expect(profile).toContain("params:{role:'customer'}");
     expect(profile).toContain("router.push('/addresses')");
     expect(profile).toContain("router.push('/favorites')");
-    expect(profile).toContain('كل واحد فيكم بياخد 50 نقطة');
   });
 });
