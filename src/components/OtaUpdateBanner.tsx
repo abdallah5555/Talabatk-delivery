@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Updates from 'expo-updates';
 
-type State = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
+type State = 'idle' | 'checking' | 'downloading' | 'ready' | 'error';
 
 export function OtaUpdateBanner() {
   const [state, setState] = useState<State>('idle');
@@ -13,42 +13,36 @@ export function OtaUpdateBanner() {
     return Math.max(0.08, Math.min(0.98, updates.downloadProgress ?? 0.08));
   }, [state, updates.downloadProgress]);
 
-  useEffect(() => {
+  async function checkAndDownload() {
     if (Platform.OS === 'web' || !Updates.isEnabled) return;
-    let mounted = true;
-    const timer = setTimeout(() => {
-      setState('checking');
-      void Updates.checkForUpdateAsync()
-        .then(result => {
-          if (!mounted) return;
-          setState(result.isAvailable ? 'available' : 'idle');
-        })
-        .catch(() => {
-          if (mounted) setState('idle');
-        });
-    }, 1800);
-    return () => {
-      mounted = false;
-      clearTimeout(timer);
-    };
-  }, []);
-
-  async function install() {
     try {
-      setState('downloading');
-      const result = await Updates.fetchUpdateAsync();
-      if (!result.isNew) {
+      setState('checking');
+      const result = await Updates.checkForUpdateAsync();
+      if (!result.isAvailable) {
         setState('idle');
         return;
       }
-      // Never force an in-process native reload here. Some Android devices can
-      // spend too long on the native reload surface. The downloaded update is
-      // safely applied on the next normal cold launch instead.
+      setState('downloading');
+      const fetched = await Updates.fetchUpdateAsync();
+      if (!fetched.isNew) {
+        setState('idle');
+        return;
+      }
+      // Keep startup safe: never force reloadAsync from inside the running app.
+      // The freshly downloaded OTA is applied on the next normal cold launch.
       setState('ready');
     } catch {
       setState('error');
     }
   }
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || !Updates.isEnabled) return;
+    const timer = setTimeout(() => {
+      void checkAndDownload();
+    }, 1800);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (Platform.OS === 'web' || !Updates.isEnabled || state === 'idle' || state === 'checking') return null;
 
@@ -57,16 +51,14 @@ export function OtaUpdateBanner() {
     <View style={styles.wrap} accessibilityLiveRegion="polite">
       <View style={styles.textWrap}>
         <Text style={styles.title}>
-          {state === 'error' ? 'تعذر تنزيل التحديث' : state === 'ready' ? 'التحديث جاهز' : downloading ? 'جاري تنزيل التحديث' : 'تحديث جديد متاح'}
+          {state === 'error' ? 'تعذر تنزيل التحديث' : state === 'ready' ? 'التحديث جاهز' : 'جاري تنزيل التحديث'}
         </Text>
         <Text style={styles.sub}>
           {state === 'error'
-            ? 'اتأكد من اتصال الإنترنت وحاول مرة أخرى.'
+            ? 'اتأكد من اتصال الإنترنت واضغط إعادة المحاولة.'
             : downloading
-              ? `جاري تنزيل التحديث… ${Math.round(progress * 100)}%`
-              : state === 'ready'
-                ? 'تم تنزيل التحديث بالكامل. كمّل استخدام التطبيق عادي، وهيتطبق تلقائيًا أول مرة تفتح التطبيق بعدها.'
-                : 'نزّل آخر تحسينات طلباتك من غير ما تعيد تثبيت التطبيق.'}
+              ? `بننزّل آخر تحسينات طلباتك تلقائيًا… ${Math.round(progress * 100)}%`
+              : 'تم تنزيل التحديث بالكامل. اقفل التطبيق بالكامل وافتحه مرة تانية عشان النسخة الجديدة تشتغل.'}
         </Text>
         {downloading ? <View style={styles.track}><View style={[styles.fill,{width:`${Math.round(progress*100)}%`}]} /></View> : null}
       </View>
@@ -75,8 +67,8 @@ export function OtaUpdateBanner() {
       ) : state === 'ready' ? (
         <Text style={styles.done}>✓</Text>
       ) : (
-        <Pressable accessibilityRole="button" onPress={() => void install()} style={styles.button}>
-          <Text style={styles.buttonText}>{state === 'error' ? 'إعادة المحاولة' : 'تنزيل التحديث'}</Text>
+        <Pressable accessibilityRole="button" onPress={() => void checkAndDownload()} style={styles.button}>
+          <Text style={styles.buttonText}>إعادة المحاولة</Text>
         </Pressable>
       )}
     </View>
@@ -101,7 +93,7 @@ const styles = StyleSheet.create({
   sub: { textAlign: 'right', color: '#7c2d12', fontSize: 12, lineHeight: 18 },
   track:{height:6,borderRadius:999,backgroundColor:'#ffedd5',overflow:'hidden'},
   fill:{height:'100%',borderRadius:999,backgroundColor:'#e8590c'},
-  button: { backgroundColor: '#e8590c', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
-  buttonText: { color: '#fff', fontWeight: '900', fontSize: 12 },
+  button: { backgroundColor:'#e8590c',paddingHorizontal:14,paddingVertical:10,borderRadius:12 },
+  buttonText: { color:'#fff',fontWeight:'900',fontSize:12 },
   done:{fontSize:22,fontWeight:'900',color:'#15803d'},
 });
