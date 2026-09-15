@@ -4,19 +4,22 @@ import { readFileSync } from 'node:fs';
 const text=(path:string)=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
 describe('OTA and reminder regressions',()=>{
-  it('downloads OTA updates without forcing an in-process native reload',()=>{
+  it('downloads OTA updates automatically without forcing an in-process native reload',()=>{
     const ota=text('src/components/OtaUpdateBanner.tsx');
+    expect(ota).toContain('checkForUpdateAsync');
     expect(ota).toContain('fetchUpdateAsync');
+    expect(ota).toContain('void checkAndDownload()');
     expect(ota).not.toContain('reloadAsync');
     expect(ota).toContain('التحديث جاهز');
-    expect(ota).toContain('هيتطبق تلقائيًا أول مرة تفتح التطبيق بعدها');
+    expect(ota).toContain('اقفل التطبيق بالكامل وافتحه مرة تانية');
   });
 
-  it('avoids startup update races in standalone Android builds',()=>{
+  it('keeps standalone Android OTA pinned to production while avoiding startup reload races',()=>{
     const config=JSON.parse(text('app.json'));
+    expect(config.expo.version).toBe('0.1.9');
     expect(config.expo.updates.checkAutomatically).toBe('NEVER');
     expect(config.expo.updates.requestHeaders?.['expo-channel-name']).toBe('production');
-    expect(config.expo.android.versionCode).toBeGreaterThanOrEqual(10);
+    expect(config.expo.android.versionCode).toBeGreaterThanOrEqual(15);
   });
 
   it('keeps adhkar notifications rotating through real dhikr and migrates stale schedules',()=>{
