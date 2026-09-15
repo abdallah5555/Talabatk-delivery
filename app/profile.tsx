@@ -6,6 +6,7 @@ import { Image } from 'expo-image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Field, Muted, Title, colors } from '@/src/components/ui';
 import { getMyRoles } from '@/src/lib/api';
+import { getOnboardingIdentity } from '@/src/lib/onboarding';
 import { getMyRewards } from '@/src/lib/rewards';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/providers/AppProviders';
@@ -14,10 +15,20 @@ type Details={id:string;full_name:string;phone:string|null;avatar_url:string|nul
 
 async function loadProfile():Promise<Details>{
   const {data,error}=await supabase.rpc('get_my_profile_details');
-  if(error)throw error;
-  const row=(Array.isArray(data)?data[0]:data) as Details|undefined;
-  if(!row)throw new Error('تعذر تحميل بيانات الحساب.');
-  return row;
+  if(!error){
+    const row=(Array.isArray(data)?data[0]:data) as Details|undefined;
+    if(row)return row;
+  }
+  const fallback=await getOnboardingIdentity();
+  return {
+    id:fallback.id,
+    full_name:fallback.full_name,
+    phone:fallback.phone,
+    avatar_url:fallback.avatar_url,
+    delivery_instructions:null,
+    accessibility_notes:null,
+    preferred_contact:'either',
+  };
 }
 
 export default function Profile(){
@@ -28,10 +39,10 @@ export default function Profile(){
   const rewards=useQuery({queryKey:['rewards'],queryFn:getMyRewards,enabled:hasCustomer});
   if(query.isLoading)return <View style={s.center}><Title>ملفي الشخصي</Title><Muted>جاري تحميل بياناتك…</Muted></View>;
   if(query.isError||!query.data)return <View style={s.center}><Title>ملفي الشخصي</Title><Muted>تعذر تحميل بيانات الحساب حاليًا.</Muted><Button title="إعادة المحاولة" onPress={()=>void query.refetch()}/><Button title="الرجوع لحسابي" onPress={()=>router.replace('/account')}/></View>;
-  return <ProfileForm key={query.data.id} initial={query.data} userId={session?.user.id??''} hasCustomer={hasCustomer} points={rewards.data?.points??null} referralCode={rewards.data?.referral_code??null}/>;
+  return <ProfileForm key={query.data.id} initial={query.data} userId={session?.user.id??''} hasCustomer={hasCustomer} points={rewards.data?.points??null}/>;
 }
 
-function ProfileForm({initial,userId,hasCustomer,points,referralCode}:{initial:Details;userId:string;hasCustomer:boolean;points:number|null;referralCode:string|null}){
+function ProfileForm({initial,userId,hasCustomer,points}:{initial:Details;userId:string;hasCustomer:boolean;points:number|null}){
   const client=useQueryClient();
   const [name,setName]=useState(initial.full_name||'');
   const [avatar,setAvatar]=useState<string|null>(initial.avatar_url||null);
@@ -74,7 +85,7 @@ function ProfileForm({initial,userId,hasCustomer,points,referralCode}:{initial:D
     finally{setBusy(false);}
   }
 
-  return <KeyboardAvoidingView style={s.page} behavior={Platform.OS==='ios'?'padding':'height'} keyboardVerticalOffset={Platform.OS==='ios'?8:0}><ScrollView style={s.page} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+  return <KeyboardAvoidingView style={s.page} behavior={Platform.OS==='ios'?'padding':undefined} keyboardVerticalOffset={Platform.OS==='ios'?8:0}><ScrollView style={s.page} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
     <Title>ملفي الشخصي</Title>
     <Muted>من هنا تقدر تحدّث بياناتك وتوصل لأهم إعدادات حسابك.</Muted>
     <Card>
@@ -88,7 +99,7 @@ function ProfileForm({initial,userId,hasCustomer,points,referralCode}:{initial:D
       <Field value={name} onChangeText={setName} placeholder="الاسم الكامل" accessibilityLabel="الاسم الكامل"/>
       <View style={s.readOnly}><Text style={s.readLabel}>رقم الموبايل</Text><Text style={s.readValue}>{initial.phone||'—'}</Text></View>
     </Card>
-    {hasCustomer?<Card><Text style={s.section}>حساب العميل</Text><View style={s.rewardRow}><View><Text style={s.rewardNumber}>{points??'…'}</Text><Text style={s.rewardCaption}>نقطة متاحة</Text></View><View style={s.flex}><Text style={s.rewardCode}>كود دعوتك: {referralCode||'…'}</Text><Muted>شارك الكود مع مستخدم جديد. لازم يكتبه أثناء إنشاء حسابه لأول مرة، وبعد أول نشاط مكتمل ليه كل واحد فيكم بياخد 50 نقطة.</Muted></View></View><View style={s.shortcutGrid}><Shortcut title="مكافآتي" onPress={()=>router.push({pathname:'/rewards',params:{role:'customer'}})}/><Shortcut title="عناويني" onPress={()=>router.push('/addresses')}/><Shortcut title="المفضلة" onPress={()=>router.push('/favorites')}/><Shortcut title="الأمان" onPress={()=>router.push('/security')}/></View></Card>:null}
+    {hasCustomer?<Card><Text style={s.section}>حساب العميل</Text><View style={s.rewardRow}><View><Text style={s.rewardNumber}>{points??'…'}</Text><Text style={s.rewardCaption}>نقطة متاحة</Text></View><View style={s.flex}><Muted>تابع نقاطك ومكافآتك من حساب العميل.</Muted></View></View><View style={s.shortcutGrid}><Shortcut title="مكافآتي" onPress={()=>router.push({pathname:'/rewards',params:{role:'customer'}})}/><Shortcut title="عناويني" onPress={()=>router.push('/addresses')}/><Shortcut title="المفضلة" onPress={()=>router.push('/favorites')}/><Shortcut title="الأمان" onPress={()=>router.push('/security')}/></View></Card>:null}
     {hasCustomer?<Card>
       <Text style={s.section}>تفضيلات التوصيل</Text>
       <Field value={delivery} onChangeText={setDelivery} placeholder="مثلاً: اتصل قبل الوصول، اترك الطلب عند الباب" accessibilityLabel="تعليمات التوصيل" multiline/>
@@ -105,4 +116,4 @@ function ProfileForm({initial,userId,hasCustomer,points,referralCode}:{initial:D
 }
 function Shortcut({title,onPress}:{title:string;onPress:()=>void}){return <Pressable onPress={onPress} style={s.shortcut}><Text style={s.shortcutText}>{title}</Text></Pressable>}
 
-const s=StyleSheet.create({page:{flex:1,backgroundColor:'#f5f7fa'},content:{padding:18,paddingBottom:44,gap:12,direction:'rtl'},center:{flex:1,justifyContent:'center',padding:24,gap:10,backgroundColor:'#f5f7fa'},avatarRow:{flexDirection:'row-reverse',alignItems:'center',gap:14},avatar:{width:92,height:92,borderRadius:28,backgroundColor:'#e4e7ec'},placeholder:{width:92,height:92,borderRadius:28,backgroundColor:'#17212f',alignItems:'center',justifyContent:'center'},letter:{fontSize:36,fontWeight:'900',color:'#fff'},flex:{flex:1,gap:7},section:{fontSize:16,fontWeight:'900',textAlign:'right',color:'#101828'},readOnly:{padding:13,borderRadius:14,backgroundColor:'#f8fafc',borderWidth:1,borderColor:'#e4e7ec'},readLabel:{fontSize:11,color:'#667085',textAlign:'right'},readValue:{fontWeight:'900',color:'#344054',textAlign:'right',marginTop:3},chips:{flexDirection:'row-reverse',gap:8,flexWrap:'wrap'},chip:{paddingHorizontal:13,paddingVertical:9,borderRadius:999,backgroundColor:'#f2f4f7',borderWidth:1,borderColor:'#e4e7ec'},chipOn:{backgroundColor:'#fff4ed',borderColor:colors.primary},chipText:{fontWeight:'800',color:'#475467'},chipTextOn:{color:'#b93815'},rewardRow:{flexDirection:'row-reverse',alignItems:'center',gap:15},rewardNumber:{fontSize:30,fontWeight:'900',color:colors.primary,textAlign:'center'},rewardCaption:{fontSize:10,color:'#667085',textAlign:'center'},rewardCode:{fontWeight:'900',color:'#344054',textAlign:'right'},shortcutGrid:{flexDirection:'row-reverse',flexWrap:'wrap',gap:8,marginTop:6},shortcut:{width:'48%',padding:11,borderRadius:13,backgroundColor:'#fff4ed',borderWidth:1,borderColor:'#fed7aa'},shortcutText:{fontWeight:'900',color:'#b93815',textAlign:'center'}});
+const s=StyleSheet.create({page:{flex:1,backgroundColor:'#f5f7fa'},content:{padding:18,paddingBottom:44,gap:12,direction:'rtl'},center:{flex:1,justifyContent:'center',padding:24,gap:10,backgroundColor:'#f5f7fa'},avatarRow:{flexDirection:'row-reverse',alignItems:'center',gap:14},avatar:{width:92,height:92,borderRadius:28,backgroundColor:'#e4e7ec'},placeholder:{width:92,height:92,borderRadius:28,backgroundColor:'#17212f',alignItems:'center',justifyContent:'center'},letter:{fontSize:36,fontWeight:'900',color:'#fff'},flex:{flex:1,gap:7},section:{fontSize:16,fontWeight:'900',textAlign:'right',color:'#101828'},readOnly:{padding:13,borderRadius:14,backgroundColor:'#f8fafc',borderWidth:1,borderColor:'#e4e7ec'},readLabel:{fontSize:11,color:'#667085',textAlign:'right'},readValue:{fontWeight:'900',color:'#344054',textAlign:'right',marginTop:3},chips:{flexDirection:'row-reverse',gap:8,flexWrap:'wrap'},chip:{paddingHorizontal:13,paddingVertical:9,borderRadius:999,backgroundColor:'#f2f4f7',borderWidth:1,borderColor:'#e4e7ec'},chipOn:{backgroundColor:'#fff4ed',borderColor:colors.primary},chipText:{fontWeight:'800',color:'#475467'},chipTextOn:{color:'#b93815'},rewardRow:{flexDirection:'row-reverse',alignItems:'center',gap:15},rewardNumber:{fontSize:30,fontWeight:'900',color:colors.primary,textAlign:'center'},rewardCaption:{fontSize:10,color:'#667085',textAlign:'center'},shortcutGrid:{flexDirection:'row-reverse',flexWrap:'wrap',gap:8,marginTop:6},shortcut:{width:'48%',padding:11,borderRadius:13,backgroundColor:'#fff4ed',borderWidth:1,borderColor:'#fed7aa'},shortcutText:{fontWeight:'900',color:'#b93815',textAlign:'center'}});
