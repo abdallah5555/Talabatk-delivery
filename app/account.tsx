@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Animated, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
@@ -18,7 +18,7 @@ const roleRoute:Record<AppRole,string>={customer:'/home',merchant:'/role/merchan
 export default function Account(){
   const {session}=useAuth();
   const [drawerOpen,setDrawerOpen]=useState(false);
-  const slideX=useRef(new Animated.Value(360)).current;
+  const [slideX]=useState(()=>new Animated.Value(360));
   const roles=useQuery({queryKey:['roles',session?.user.id],queryFn:getMyRoles,enabled:Boolean(session?.user.id)});
   const profile=useQuery({queryKey:['profile-summary',session?.user.id],queryFn:getOnboardingIdentity,enabled:Boolean(session?.user.id),retry:2,staleTime:30_000});
   const fleet=useQuery({queryKey:['fleet-summary',session?.user.id],queryFn:getMyFleetSummary,enabled:Boolean(session?.user.id),retry:false,staleTime:30_000});
