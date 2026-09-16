@@ -1,0 +1,38 @@
+name: oneoff-expo-compat
+
+on:
+  push:
+    paths:
+      - '.github/workflows/oneoff-expo-compat.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Align Expo SDK 57 patch versions
+        run: npx expo install expo@~57.0.23 expo-image-picker@~57.0.18 expo-location@~57.0.18 expo-notifications@~57.0.19
+      - name: Verify Expo dependencies
+        run: npx expo install --check
+      - name: Commit compatibility update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No dependency changes required"
+          else
+            git commit -m "chore: align Expo SDK 57 patch dependencies"
+            git push origin HEAD:main
+          fi
