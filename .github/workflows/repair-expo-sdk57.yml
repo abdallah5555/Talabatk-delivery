@@ -105,8 +105,8 @@ jobs:
           const changedDirect = [...new Set([...Object.keys(baseDirect), ...Object.keys(nowDirect)])]
             .filter(k => JSON.stringify(baseDirect[k]) !== JSON.stringify(nowDirect[k]));
           console.log('Changed package.json direct dependencies:', changedDirect);
-          if (JSON.stringify([...changedDirect].sort()) !== JSON.stringify([...expo].sort())) {
-            throw new Error('package.json changes must be limited to the eight approved Expo dependencies.');
+          if (changedDirect.some(name => !expo.includes(name))) {
+            throw new Error('package.json contains a changed direct dependency outside the eight approved Expo packages.');
           }
           const expectedPkg = structuredClone(basePkg);
           for (const name of expo) expectedPkg.dependencies[name] = nowDirect[name];
@@ -123,19 +123,65 @@ jobs:
           if (changedRoot.some(k => !allowed.includes(k))) {
             throw new Error('package-lock root records contain changes outside the eight Expo packages and two approved peer pins.');
           }
-          const allPaths = new Set([...Object.keys(baseLock.packages||{}), ...Object.keys(nowLock.packages||{})]);
+          const packageKeys = lock => lock.packages || {};
+          function resolveDependency(fromPath, depName, packages) {
+            let dir = fromPath;
+            while (true) {
+              const candidate = (dir ? dir + '/' : '') + 'node_modules/' + depName;
+              if (packages[candidate]) return candidate;
+              const marker = dir.lastIndexOf('/node_modules/');
+              if (marker >= 0) {
+                dir = dir.slice(0, marker);
+              } else if (dir.startsWith('node_modules/')) {
+                dir = '';
+              } else {
+                return null;
+              }
+              if (!dir) {
+                const rootCandidate = 'node_modules/' + depName;
+                return packages[rootCandidate] ? rootCandidate : null;
+              }
+            }
+          }
+          function dependencyClosure(lock) {
+            const packages = packageKeys(lock);
+            const visited = new Set();
+            const queue = allowed.map(name => 'node_modules/' + name).filter(p => packages[p]);
+            while (queue.length) {
+              const current = queue.shift();
+              if (visited.has(current)) continue;
+              visited.add(current);
+              const entry = packages[current] || {};
+              const names = new Set([
+                ...Object.keys(entry.dependencies || {}),
+                ...Object.keys(entry.optionalDependencies || {}),
+                ...Object.keys(entry.peerDependencies || {})
+              ]);
+              for (const name of names) {
+                const resolved = resolveDependency(current, name, packages);
+                if (resolved && !visited.has(resolved)) queue.push(resolved);
+              }
+            }
+            return visited;
+          }
+          const baseClosure = dependencyClosure(baseLock);
+          const currentClosure = dependencyClosure(nowLock);
+          const allowedLockPaths = new Set([...baseClosure, ...currentClosure]);
+          const allPaths = new Set([...Object.keys(packageKeys(baseLock)), ...Object.keys(packageKeys(nowLock))]);
           const changedPaths = [...allPaths].filter(k =>
-            JSON.stringify(canon(baseLock.packages?.[k])) !== JSON.stringify(canon(nowLock.packages?.[k]))
+            JSON.stringify(canon(packageKeys(baseLock)[k])) !== JSON.stringify(canon(packageKeys(nowLock)[k]))
           );
-          const unexpected = changedPaths.filter(k => {
-            if (k === '') return false;
-            const p = k.split('node_modules/').pop();
-            const name = p.startsWith('@') ? p.split('/').slice(0,2).join('/') : p.split('/')[0];
-            return !allowed.includes(name);
-          });
+          const unexpected = changedPaths.filter(k => k !== '' && !allowedLockPaths.has(k));
           console.log('Changed package-lock package records:', changedPaths);
           if (unexpected.length) {
-            throw new Error('package-lock changes outside the approved package records: ' + unexpected.join(', '));
+            throw new Error('package-lock changes include packages outside approved Expo/peer dependency trees: ' + unexpected.join(', '));
+          }
+          for (const [name, version] of Object.entries({
+            'react-native-reanimated':'4.5.5',
+            'react-native-worklets':'0.10.4'
+          })) {
+            const actual = nowLock.packages?.['node_modules/' + name]?.version;
+            if (actual !== version) throw new Error(name + ' lock version must be ' + version + ', found ' + actual);
           }
           const appBase = cp.execFileSync('git', ['show', `${baseSha}:app.json`], {encoding:'utf8'});
           const appNow = fs.readFileSync('app.json','utf8');
